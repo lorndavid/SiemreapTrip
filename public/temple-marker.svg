@@ -1,0 +1,21 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="35"
+  height="35"
+  viewBox="0 0 48 48"
+  fill="none"
+>
+  <defs>
+    <linearGradient id="markerGradient" x1="8" y1="4" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D4ED8" />
+      <stop offset="1" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M24 4C15.1634 4 8 11.1634 8 20C8 31.5 24 44 24 44C24 44 40 31.5 40 20C40 11.1634 32.8366 4 24 4Z"
+    fill="url(#markerGradient)"
+  />
+  <circle cx="24" cy="20" r="8" fill="white" />
+  <path d="M18 24H30L27 14H21L18 24Z" fill="#1D4ED8" />
+  <path d="M17 26H31" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round" />
+</svg>

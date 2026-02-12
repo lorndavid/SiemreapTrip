@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" fill="none">
+  <defs>
+    <linearGradient id="skyNew" x1="0" y1="0" x2="0" y2="675">
+      <stop offset="0" stop-color="#0ea5e9" />
+      <stop offset="0.58" stop-color="#38bdf8" />
+      <stop offset="1" stop-color="#93c5fd" />
+    </linearGradient>
+    <linearGradient id="templeNew" x1="130" y1="280" x2="1000" y2="500">
+      <stop offset="0" stop-color="#f97316" />
+      <stop offset="1" stop-color="#b45309" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#skyNew)" />
+  <rect x="0" y="430" width="1200" height="245" fill="#16a34a" />
+  <rect x="130" y="280" width="940" height="220" fill="url(#templeNew)" />
+  <rect x="220" y="250" width="760" height="200" fill="#ea580c" />
+  <rect x="315" y="220" width="570" height="170" fill="#c2410c" />
+  <rect x="560" y="70" width="90" height="230" fill="#9a3412" />
+  <path d="M560 70L605 10L650 70H560Z" fill="#7c2d12" />
+  <rect x="460" y="120" width="80" height="170" fill="#b45309" />
+  <path d="M460 120L500 70L540 120H460Z" fill="#7c2d12" />
+  <rect x="670" y="120" width="80" height="170" fill="#b45309" />
+  <path d="M670 120L710 70L750 120H670Z" fill="#7c2d12" />
+  <rect x="0" y="500" width="1200" height="175" fill="#0ea5e9" />
+  <rect x="0" y="510" width="1200" height="16" fill="#fef08a" opacity="0.45" />
+  <circle cx="1065" cy="96" r="48" fill="#fde047" />
+  <text
+    x="40"
+    y="62"
+    fill="#082f49"
+    font-size="38"
+    font-family="Arial, sans-serif"
+    font-weight="700"
+    letter-spacing="0.8"
+  >
+    ANGKOR WAT - 2024 VIEW
+  </text>
+</svg>
