@@ -19,6 +19,11 @@ type SongLibraryProps = {
   songs: SongTrack[];
 };
 
+type AppPalette = "man" | "woman" | "mix";
+type AudioBehavior = "background" | "stop";
+type ScrollMode = "smooth" | "auto";
+type MotionMode = "dynamic" | "minimal";
+
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) {
     return "0:00";
@@ -29,9 +34,41 @@ function formatTime(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
+function parsePalette(raw: string | null): AppPalette {
+  if (raw === "man" || raw === "woman" || raw === "mix") {
+    return raw;
+  }
+  return "mix";
+}
+
+function parseAudioBehavior(raw: string | null): AudioBehavior {
+  if (raw === "background" || raw === "stop") {
+    return raw;
+  }
+  return "stop";
+}
+
+function parseScrollMode(raw: string | null): ScrollMode {
+  if (raw === "smooth" || raw === "auto") {
+    return raw;
+  }
+  return "smooth";
+}
+
+function parseMotionMode(raw: string | null): MotionMode {
+  if (raw === "dynamic" || raw === "minimal") {
+    return raw;
+  }
+  return "dynamic";
+}
+
 export default function SongLibrary({ songs }: SongLibraryProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [appPalette, setAppPalette] = useState<AppPalette>("mix");
+  const [audioBehavior, setAudioBehavior] = useState<AudioBehavior>("stop");
+  const [scrollMode, setScrollMode] = useState<ScrollMode>("smooth");
+  const [motionMode, setMotionMode] = useState<MotionMode>("dynamic");
   const [query, setQuery] = useState("");
   const [selectedSongId, setSelectedSongId] = useState<string | null>(songs[0]?.id ?? null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -55,6 +92,26 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
   const activeIndex = activeSong
     ? songs.findIndex((song) => song.id === activeSong.id)
     : -1;
+  const paletteClass =
+    appPalette === "man"
+      ? "palette-man"
+      : appPalette === "woman"
+        ? "palette-woman"
+        : "palette-mix";
+
+  useEffect(() => {
+    const storedPalette = parsePalette(window.localStorage.getItem("sr_app_palette"));
+    const storedAudioBehavior = parseAudioBehavior(window.localStorage.getItem("sr_audio_behavior"));
+    const storedScrollMode = parseScrollMode(window.localStorage.getItem("sr_scroll_mode"));
+    const storedMotionMode = parseMotionMode(window.localStorage.getItem("sr_motion_mode"));
+
+    queueMicrotask(() => {
+      setAppPalette(storedPalette);
+      setAudioBehavior(storedAudioBehavior);
+      setScrollMode(storedScrollMode);
+      setMotionMode(storedMotionMode);
+    });
+  }, []);
 
   useEffect(() => {
     if (!activeSong || !audioRef.current) {
@@ -78,6 +135,10 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
       return;
     }
 
+    if (motionMode === "minimal") {
+      return;
+    }
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         "[data-song-animate='hero']",
@@ -93,7 +154,55 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [filteredSongs.length]);
+  }, [filteredSongs.length, motionMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-scroll-smooth", scrollMode === "smooth");
+    root.classList.toggle("mode-scroll-auto", scrollMode === "auto");
+
+    return () => {
+      root.classList.remove("mode-scroll-smooth", "mode-scroll-auto");
+    };
+  }, [scrollMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-motion-minimal", motionMode === "minimal");
+    root.classList.toggle("mode-motion-dynamic", motionMode === "dynamic");
+
+    return () => {
+      root.classList.remove("mode-motion-minimal", "mode-motion-dynamic");
+    };
+  }, [motionMode]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden || audioBehavior === "background") {
+        return;
+      }
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+    };
+
+    const handlePageHide = () => {
+      if (audioBehavior === "background") {
+        return;
+      }
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [audioBehavior]);
 
   const handleTogglePlay = async () => {
     if (!audioRef.current || !activeSong) {
@@ -162,7 +271,7 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
   return (
     <main
       ref={rootRef}
-      className="relative min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#1e1b4b_36%,#020617_100%)] px-4 py-5 text-white"
+      className={`relative min-h-screen bg-[var(--music-bg)] px-4 py-5 text-white ${paletteClass}`}
     >
       <div className="pointer-events-none absolute -left-14 top-20 h-44 w-44 rounded-full bg-cyan-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-14 top-8 h-44 w-44 rounded-full bg-indigo-300/20 blur-3xl" />

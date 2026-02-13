@@ -28,6 +28,13 @@ import WeatherWidget from "@/components/WeatherWidget";
 import AmbiencePlayer from "@/components/AmbiencePlayer";
 
 type LanguageMode = "en" | "kh";
+type AppPalette = "man" | "woman" | "mix";
+type ScrollMode = "smooth" | "auto";
+type MotionMode = "dynamic" | "minimal";
+
+function parseLanguage(raw: string | null): LanguageMode {
+  return raw === "kh" ? "kh" : "en";
+}
 
 type MapProps = {
   locations: GuideLocation[];
@@ -59,6 +66,27 @@ function parseSavedIds(raw: string | null): number[] {
   } catch {
     return [];
   }
+}
+
+function parsePalette(raw: string | null): AppPalette {
+  if (raw === "man" || raw === "woman" || raw === "mix") {
+    return raw;
+  }
+  return "mix";
+}
+
+function parseScrollMode(raw: string | null): ScrollMode {
+  if (raw === "smooth" || raw === "auto") {
+    return raw;
+  }
+  return "smooth";
+}
+
+function parseMotionMode(raw: string | null): MotionMode {
+  if (raw === "dynamic" || raw === "minimal") {
+    return raw;
+  }
+  return "dynamic";
 }
 
 const Map = dynamic<MapProps>(() => import("@/components/Map"), {
@@ -126,6 +154,9 @@ export default function PlaceDetailPage() {
   const [timeSnapshot, setTimeSnapshot] = useState<CambodiaTimeSnapshot>(
     createInitialTimeSnapshot,
   );
+  const [appPalette, setAppPalette] = useState<AppPalette>("mix");
+  const [scrollMode, setScrollMode] = useState<ScrollMode>("smooth");
+  const [motionMode, setMotionMode] = useState<MotionMode>("dynamic");
   const [isMapReady, setIsMapReady] = useState(false);
   const [isTipOpen, setIsTipOpen] = useState(true);
   const tipRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +170,12 @@ export default function PlaceDetailPage() {
       : timeSnapshot.phase === "night"
         ? "theme-night"
         : "theme-day";
+  const paletteClass =
+    appPalette === "man"
+      ? "palette-man"
+      : appPalette === "woman"
+        ? "palette-woman"
+        : "palette-mix";
 
   const location = useMemo(
     () => siemReapLocations.find((item) => item.id === placeId) ?? null,
@@ -180,6 +217,44 @@ export default function PlaceDetailPage() {
   }, []);
 
   useEffect(() => {
+    const storedLanguage = parseLanguage(window.localStorage.getItem("sr_language"));
+    const storedPalette = parsePalette(window.localStorage.getItem("sr_app_palette"));
+    const storedScrollMode = parseScrollMode(window.localStorage.getItem("sr_scroll_mode"));
+    const storedMotionMode = parseMotionMode(window.localStorage.getItem("sr_motion_mode"));
+
+    queueMicrotask(() => {
+      setLanguage(storedLanguage);
+      setAppPalette(storedPalette);
+      setScrollMode(storedScrollMode);
+      setMotionMode(storedMotionMode);
+    });
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_language", language);
+  }, [language]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-scroll-smooth", scrollMode === "smooth");
+    root.classList.toggle("mode-scroll-auto", scrollMode === "auto");
+
+    return () => {
+      root.classList.remove("mode-scroll-smooth", "mode-scroll-auto");
+    };
+  }, [scrollMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-motion-minimal", motionMode === "minimal");
+    root.classList.toggle("mode-motion-dynamic", motionMode === "dynamic");
+
+    return () => {
+      root.classList.remove("mode-motion-minimal", "mode-motion-dynamic");
+    };
+  }, [motionMode]);
+
+  useEffect(() => {
     if (!hasLoadedSavedIdsRef.current) {
       return;
     }
@@ -218,12 +293,16 @@ export default function PlaceDetailPage() {
       return;
     }
 
+    if (motionMode === "minimal") {
+      return;
+    }
+
     gsap.fromTo(
       tipRef.current,
       { opacity: 0, y: 20, scale: 0.96 },
       { opacity: 1, y: 0, scale: 1, duration: 0.38, ease: "power3.out" },
     );
-  }, [isTipOpen]);
+  }, [isTipOpen, motionMode]);
 
   const toggleSave = (locationId: number) => {
     setSavedIds((previousSaved) =>
@@ -250,7 +329,7 @@ export default function PlaceDetailPage() {
   }
 
   return (
-    <main className={`relative min-h-screen overflow-hidden bg-[var(--screen-bg)] ${themeClass}`}>
+    <main className={`relative min-h-screen overflow-hidden bg-[var(--screen-bg)] ${themeClass} ${paletteClass}`}>
       <div className="absolute inset-0 z-0">
         <Map
           locations={siemReapLocations}
@@ -270,9 +349,7 @@ export default function PlaceDetailPage() {
               <ArrowLeft size={12} /> {text.back}
             </Link>
 
-            <div className="inline-flex rounded-lg bg-slate-50 px-2 py-1">
-              <Image src="/logo-travel.png" alt="Angkor Go" width={104} height={30} className="h-6 w-auto" />
-            </div>
+            <Image src="/logo-travel.png" alt="Angkor Go" width={110} height={32} className="h-7 w-auto object-contain" />
 
             <button
               type="button"

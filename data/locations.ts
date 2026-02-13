@@ -255,7 +255,7 @@ export const siemReapLocations: GuideLocation[] = [
     id: 17,
     name: "Lotus Silk Farm",
     nameKh: "កសិដ្ឋានសូត្រផ្កាឈូក",
-    lat: 13.29414,
+    lat: 13.29414, 
     lng: 103.83145,
     type: "Shopping",
     desc: "Handcrafted lotus silk workshops and sustainable textile demonstrations.",

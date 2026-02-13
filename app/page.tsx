@@ -43,6 +43,14 @@ import {
 
 type LanguageMode = "en" | "kh";
 type AppTab = "home" | "place" | "save" | "profile";
+type AppPalette = "man" | "woman" | "mix";
+type AudioBehavior = "background" | "stop";
+type ScrollMode = "smooth" | "auto";
+type MotionMode = "dynamic" | "minimal";
+
+function parseLanguage(raw: string | null): LanguageMode {
+  return raw === "kh" ? "kh" : "en";
+}
 
 function createInitialTimeSnapshot(): CambodiaTimeSnapshot {
   return {
@@ -67,6 +75,34 @@ function parseSavedIds(raw: string | null): number[] {
   } catch {
     return [];
   }
+}
+
+function parsePalette(raw: string | null): AppPalette {
+  if (raw === "man" || raw === "woman" || raw === "mix") {
+    return raw;
+  }
+  return "mix";
+}
+
+function parseAudioBehavior(raw: string | null): AudioBehavior {
+  if (raw === "background" || raw === "stop") {
+    return raw;
+  }
+  return "stop";
+}
+
+function parseScrollMode(raw: string | null): ScrollMode {
+  if (raw === "smooth" || raw === "auto") {
+    return raw;
+  }
+  return "smooth";
+}
+
+function parseMotionMode(raw: string | null): MotionMode {
+  if (raw === "dynamic" || raw === "minimal") {
+    return raw;
+  }
+  return "dynamic";
 }
 
 function formatAudioClock(seconds: number): string {
@@ -132,6 +168,25 @@ const uiText = {
     profileRole: "Angkor Explorer",
     language: "Language",
     khmerMode: "Khmer Mode",
+    preferencesTitle: "Appearance & Motion",
+    preferencesDesc: "Theme, scroll, animation, and audio controls in one page.",
+    openSettingsCenter: "Open Settings",
+    themeTitle: "App Theme",
+    themeMan: "Man",
+    themeWoman: "Woman",
+    themeMix: "Mix",
+    themeHint: "Pick a palette style for all pages.",
+    audioTitle: "Audio in Background",
+    audioModeBackground: "Keep Playing",
+    audioModeStop: "Auto Stop",
+    audioHint:
+      "Browser can keep sound in background tab mode, but fully closing the app will stop audio.",
+    scrollTitle: "Scroll Style",
+    scrollSmooth: "Smooth",
+    scrollAuto: "Normal",
+    motionTitle: "Animation Mode",
+    motionDynamic: "Dynamic",
+    motionMinimal: "Minimal",
     notifications: "Notifications",
     settings: "Settings",
     tips: "Travel Tips",
@@ -218,6 +273,25 @@ const uiText = {
     profileRole: "អ្នកស្វែងរកអង្គរ",
     language: "ភាសា",
     khmerMode: "របៀបខ្មែរ",
+    preferencesTitle: "Appearance & Motion",
+    preferencesDesc: "Theme, scroll, animation, and audio controls in one page.",
+    openSettingsCenter: "Open Settings",
+    themeTitle: "Theme App",
+    themeMan: "Man",
+    themeWoman: "Woman",
+    themeMix: "Mix",
+    themeHint: "ជ្រើសពណ៌ Theme សម្រាប់ទំព័រទាំងអស់។",
+    audioTitle: "Audio in Background",
+    audioModeBackground: "Keep Playing",
+    audioModeStop: "Auto Stop",
+    audioHint:
+      "Browser can keep sound in background tab mode, but fully closing the app will stop audio.",
+    scrollTitle: "Scroll Style",
+    scrollSmooth: "Smooth",
+    scrollAuto: "Normal",
+    motionTitle: "Animation Mode",
+    motionDynamic: "Dynamic",
+    motionMinimal: "Minimal",
     notifications: "ការជូនដំណឹង",
     settings: "ការកំណត់",
     tips: "គន្លឹះធ្វើដំណើរ",
@@ -331,6 +405,10 @@ export default function Home() {
   const [hasShownEtiquette, setHasShownEtiquette] = useState(false);
   const [isEtiquetteOpen, setIsEtiquetteOpen] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
+  const [appPalette, setAppPalette] = useState<AppPalette>("mix");
+  const [audioBehavior, setAudioBehavior] = useState<AudioBehavior>("stop");
+  const [scrollMode, setScrollMode] = useState<ScrollMode>("smooth");
+  const [motionMode, setMotionMode] = useState<MotionMode>("dynamic");
   const [songCount, setSongCount] = useState<number | null>(null);
   const [songLibrary, setSongLibrary] = useState<SongTrack[]>([]);
   const [introTrackIndex, setIntroTrackIndex] = useState(0);
@@ -352,6 +430,12 @@ export default function Home() {
       : timeSnapshot.phase === "night"
         ? "theme-night"
         : "theme-day";
+  const paletteClass =
+    appPalette === "man"
+      ? "palette-man"
+      : appPalette === "woman"
+        ? "palette-woman"
+        : "palette-mix";
 
   const filteredLocations = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -406,6 +490,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (motionMode === "minimal") {
+      return;
+    }
+
     const context = gsap.context(() => {
       gsap.fromTo(
         "[data-animate='top']",
@@ -420,9 +508,14 @@ export default function Home() {
     }, rootRef);
 
     return () => context.revert();
-  }, []);
+  }, [motionMode]);
 
   useEffect(() => {
+    if (motionMode === "minimal") {
+      const timer = window.setTimeout(() => setIsBooting(false), 650);
+      return () => window.clearTimeout(timer);
+    }
+
     const context = gsap.context(() => {
       const timeline = gsap.timeline();
       timeline
@@ -438,34 +531,10 @@ export default function Home() {
           "-=0.2",
         )
         .fromTo(
-          "[data-splash='halo']",
-          { opacity: 0, rotate: -18, scale: 0.8 },
-          { opacity: 1, rotate: 0, scale: 1, duration: 0.7, ease: "power2.out" },
-          "-=0.55",
-        )
-        .fromTo(
-          "[data-splash='title']",
+          "[data-splash='loader']",
           { opacity: 0, y: 14 },
           { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
           "-=0.25",
-        )
-        .fromTo(
-          "[data-splash='subtitle']",
-          { opacity: 0, y: 10 },
-          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
-          "-=0.2",
-        )
-        .fromTo(
-          "[data-splash='meter']",
-          { scaleX: 0 },
-          { scaleX: 1, duration: 1, ease: "power2.inOut", transformOrigin: "left center" },
-          "-=0.12",
-        )
-        .fromTo(
-          "[data-splash='beats']",
-          { opacity: 0, y: 10 },
-          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
-          "-=0.3",
         );
     }, splashRef);
 
@@ -477,7 +546,7 @@ export default function Home() {
       context.revert();
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [motionMode]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -494,6 +563,10 @@ export default function Home() {
       return;
     }
 
+    if (motionMode === "minimal") {
+      return;
+    }
+
     const items = contentRef.current.querySelectorAll("[data-tab-item]");
     gsap.fromTo(
       items,
@@ -505,6 +578,7 @@ export default function Home() {
     language,
     filteredLocations.length,
     savedLocations.length,
+    motionMode,
   ]);
 
   useEffect(() => {
@@ -522,6 +596,62 @@ export default function Home() {
     }
     window.localStorage.setItem("sr_saved_ids", JSON.stringify(savedIds));
   }, [savedIds]);
+
+  useEffect(() => {
+    const storedLanguage = parseLanguage(window.localStorage.getItem("sr_language"));
+    const storedPalette = parsePalette(window.localStorage.getItem("sr_app_palette"));
+    const storedAudioBehavior = parseAudioBehavior(window.localStorage.getItem("sr_audio_behavior"));
+    const storedScrollMode = parseScrollMode(window.localStorage.getItem("sr_scroll_mode"));
+    const storedMotionMode = parseMotionMode(window.localStorage.getItem("sr_motion_mode"));
+
+    queueMicrotask(() => {
+      setLanguage(storedLanguage);
+      setAppPalette(storedPalette);
+      setAudioBehavior(storedAudioBehavior);
+      setScrollMode(storedScrollMode);
+      setMotionMode(storedMotionMode);
+    });
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_language", language);
+  }, [language]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_app_palette", appPalette);
+  }, [appPalette]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_audio_behavior", audioBehavior);
+  }, [audioBehavior]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_scroll_mode", scrollMode);
+  }, [scrollMode]);
+
+  useEffect(() => {
+    window.localStorage.setItem("sr_motion_mode", motionMode);
+  }, [motionMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-scroll-smooth", scrollMode === "smooth");
+    root.classList.toggle("mode-scroll-auto", scrollMode === "auto");
+
+    return () => {
+      root.classList.remove("mode-scroll-smooth", "mode-scroll-auto");
+    };
+  }, [scrollMode]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("mode-motion-minimal", motionMode === "minimal");
+    root.classList.toggle("mode-motion-dynamic", motionMode === "dynamic");
+
+    return () => {
+      root.classList.remove("mode-motion-minimal", "mode-motion-dynamic");
+    };
+  }, [motionMode]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -588,12 +718,16 @@ export default function Home() {
       return;
     }
 
+    if (motionMode === "minimal") {
+      return;
+    }
+
     gsap.fromTo(
       etiquetteCardRef.current,
       { opacity: 0, y: 24, scale: 0.96 },
       { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" },
     );
-  }, [isEtiquetteOpen, language]);
+  }, [isEtiquetteOpen, language, motionMode]);
 
   const playTrackByIndex = useCallback(async (index: number) => {
     const audio = introAudioRef.current;
@@ -691,6 +825,36 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [hasStartedIntro, handleIntroReplay, isBooting]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden || audioBehavior === "background") {
+        return;
+      }
+
+      if (introAudioRef.current && !introAudioRef.current.paused) {
+        introAudioRef.current.pause();
+      }
+    };
+
+    const handlePageHide = () => {
+      if (audioBehavior === "background") {
+        return;
+      }
+
+      if (introAudioRef.current && !introAudioRef.current.paused) {
+        introAudioRef.current.pause();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [audioBehavior]);
+
   const localizeName = (location: GuideLocation) =>
     language === "kh" ? location.nameKh : location.name;
 
@@ -770,70 +934,61 @@ export default function Home() {
   return (
     <main
       ref={rootRef}
-      className={`relative min-h-screen bg-[var(--screen-bg)] px-3 py-4 transition-colors md:px-6 ${themeClass}`}
+      className={`relative min-h-screen bg-[var(--screen-bg)] px-3 py-4 transition-colors md:px-6 ${themeClass} ${paletteClass}`}
     >
       <div
         className={`relative mx-auto flex h-[calc(100vh-2rem)] w-full max-w-[460px] flex-col overflow-hidden rounded-[34px] border border-slate-200/80 bg-[var(--phone-bg)] shadow-[0_28px_60px_-30px_rgba(15,23,42,0.55)] ${language === "kh" ? "lang-kh" : "lang-en"}`}
       >
         <header
           data-animate="top"
-          className={`relative overflow-hidden rounded-b-[32px] bg-gradient-to-br px-5 pb-5 pt-6 text-white ${
-            timeSnapshot.phase === "golden"
-              ? "from-orange-500 via-amber-500 to-purple-600"
-              : timeSnapshot.phase === "night"
-                ? "from-slate-900 via-indigo-900 to-purple-900"
-                : "from-red-600 via-rose-600 to-orange-500"
-          }`}
+          className="relative overflow-hidden rounded-b-[32px] px-5 pb-5 pt-5 text-white"
         >
-          <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10" />
-          <div className="pointer-events-none absolute -bottom-12 left-6 h-28 w-28 rounded-full bg-white/10" />
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://i.postimg.cc/qvsdBKK4/vecteezy-asean-scenery-country-background-of-cambodia-with-angkor-wat-5644005-1.jpg')",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/52 via-slate-900/36 to-slate-950/66" />
+          <div className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10 blur-sm" />
+          <div className="pointer-events-none absolute -bottom-12 left-6 h-28 w-28 rounded-full bg-white/10 blur-sm" />
 
-          <div className="relative z-10 flex items-start justify-between gap-3">
-            <div>
-              <div className="inline-flex h-10 overflow-hidden rounded-xl border border-white/35 bg-white/15 backdrop-blur">
-                <Image
-                  src="/logo-travel.png"
-                  alt="Angkor Go"
-                  width={126}
-                  height={40}
-                  className="h-full w-auto object-cover scale-110"
-                />
-              </div>
-              <h1 className="app-heading mt-1 text-[1.55rem] leading-none">
-                {text.tabs[activeTab]}
-              </h1>
-              <p className="mt-1.5 text-xs text-red-100">{text.tagline}</p>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium">
-                <Sunrise size={12} />
-                <span>{text.sunsetTracker}</span>
-                <span suppressHydrationWarning className="font-semibold">
-                  {timeSnapshot.formattedTime}
-                </span>
-              </div>
-              <p suppressHydrationWarning className="mt-1 text-[11px] text-red-100">
-                {timeSnapshot.formattedDate} • {text.goldenHour}: {text.goldenRange}
-              </p>
-            </div>
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <Image
+              src="/logo-travel.png"
+              alt="Angkor Go"
+              width={198}
+              height={62}
+              className="h-14 w-auto max-w-[72%] object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.3)]"
+              priority
+            />
 
-            <div className="rounded-full bg-white/20 p-1 backdrop-blur">
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                  language === "en" ? "bg-white text-red-600" : "text-white"
-                }`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage("kh")}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                  language === "kh" ? "bg-white text-red-600" : "text-white"
-                }`}
-              >
-                KH
-              </button>
+            <div className="rounded-2xl border border-white/35 bg-white/18 p-1.5 backdrop-blur-md">
+              <div className="grid min-w-[96px] grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
+                    language === "en"
+                      ? "bg-white text-[var(--ui-header-start)] shadow-sm"
+                      : "text-white/90 hover:bg-white/15"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("kh")}
+                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
+                    language === "kh"
+                      ? "bg-white text-[var(--ui-header-start)] shadow-sm"
+                      : "text-white/90 hover:bg-white/15"
+                  }`}
+                >
+                  KH
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -1265,21 +1420,54 @@ export default function Home() {
             <div className="space-y-3">
               <div
                 data-tab-item
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+                className="relative overflow-hidden rounded-[1.7rem] border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 text-white shadow-[0_24px_44px_-28px_rgba(15,23,42,0.95)]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="relative h-20 w-20 overflow-hidden rounded-[1.15rem] border border-red-200 bg-gradient-to-br from-red-500 to-orange-500 shadow-[0_18px_35px_-24px_rgba(185,28,28,0.8)]">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-300/15 blur-2xl" />
+                <div className="pointer-events-none absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-rose-300/15 blur-2xl" />
+
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className="relative h-20 w-20 overflow-hidden rounded-[1.15rem] border border-white/35 bg-white/10 shadow-[0_16px_34px_-22px_rgba(15,23,42,0.85)]">
                     <Image
                       src="/icon-travel.png"
                       alt="Traveler profile"
                       fill
                       sizes="80px"
-                      className="object-cover scale-[2.4]"
+                      className="object-cover scale-[2.35]"
                     />
                   </div>
-                  <div>
-                    <h2 className="app-heading text-base text-slate-900">{text.profileName}</h2>
-                    <p className="text-xs text-slate-600">{text.profileRole}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="inline-flex rounded-full border border-white/30 bg-white/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/85">
+                      {language === "kh" ? "PRO" : "PRO"}
+                    </p>
+                    <h2 className="app-heading mt-1 truncate text-lg">{text.profileName}</h2>
+                    <p className="text-xs text-slate-200">{text.profileRole}</p>
+                  </div>
+                  <Link
+                    href="/settings"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                  >
+                    <Settings2 size={14} />
+                  </Link>
+                </div>
+
+                <div className="relative z-10 mt-3 grid grid-cols-3 gap-2">
+                  <div className="rounded-xl border border-white/20 bg-white/10 p-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                      {text.totalPlaces}
+                    </p>
+                    <p className="mt-1 text-sm font-bold">{siemReapLocations.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/20 bg-white/10 p-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                      {text.savedPlaces}
+                    </p>
+                    <p className="mt-1 text-sm font-bold">{savedIds.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/20 bg-white/10 p-2 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                      {text.tracks}
+                    </p>
+                    <p className="mt-1 text-sm font-bold">{songCount ?? "--"}</p>
                   </div>
                 </div>
               </div>
@@ -1290,14 +1478,14 @@ export default function Home() {
               >
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {language === "kh" ? "ស្ថិតិដំណើរ" : "Travel Snapshot"}
+                    {language === "kh" ? "Travel Snapshot" : "Travel Snapshot"}
                   </p>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                    {language === "kh" ? "ប្រវត្តិ" : "Profile"}
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    LIVE
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-2xl border border-red-100 bg-gradient-to-b from-red-50 to-white p-3 text-center">
                     <MapPinned size={14} className="mx-auto text-red-500" />
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -1319,6 +1507,13 @@ export default function Home() {
                     </p>
                     <p className="mt-0.5 text-lg font-bold text-slate-900">{songCount ?? "--"}</p>
                   </div>
+                  <div className="rounded-2xl border border-amber-100 bg-gradient-to-b from-amber-50 to-white p-3 text-center">
+                    <Sunrise size={14} className="mx-auto text-amber-500" />
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.goldenHour}
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold text-slate-900">{text.goldenRange}</p>
+                  </div>
                 </div>
               </div>
 
@@ -1326,12 +1521,14 @@ export default function Home() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   {text.language}
                 </p>
-                <div className="mt-2 inline-flex rounded-full bg-slate-100 p-1">
+                <div className="mt-2 inline-flex rounded-2xl border border-slate-200 bg-slate-100/90 p-1">
                   <button
                     type="button"
                     onClick={() => setLanguage("en")}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      language === "en" ? "bg-red-600 text-white" : "text-slate-600"
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold leading-none ${
+                      language === "en"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-white"
                     }`}
                   >
                     EN
@@ -1339,8 +1536,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setLanguage("kh")}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      language === "kh" ? "bg-red-600 text-white" : "text-slate-600"
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold leading-none ${
+                      language === "kh"
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-white"
                     }`}
                   >
                     KH
@@ -1350,6 +1549,102 @@ export default function Home() {
                   <Languages size={12} className="mr-1 inline-block" />
                   {text.khmerMode}
                 </p>
+              </div>
+
+              <div
+                data-tab-item
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {text.preferencesTitle}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">{text.preferencesDesc}</p>
+                  </div>
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center gap-1 rounded-xl bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
+                  >
+                    <Settings2 size={13} /> {text.openSettingsCenter}
+                  </Link>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.themeTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-800">
+                      {appPalette === "man"
+                        ? text.themeMan
+                        : appPalette === "woman"
+                          ? text.themeWoman
+                          : text.themeMix}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.scrollTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-800">
+                      {scrollMode === "smooth" ? text.scrollSmooth : text.scrollAuto}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.motionTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-800">
+                      {motionMode === "dynamic" ? text.motionDynamic : text.motionMinimal}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.audioTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-800">
+                      {audioBehavior === "background" ? text.audioModeBackground : text.audioModeStop}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                data-tab-item
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  {language === "kh" ? "Quick Actions" : "Quick Actions"}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange("place")}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <MapPinned size={12} /> {text.tabs.place}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange("save")}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <Heart size={12} /> {text.tabs.save}
+                  </button>
+                  <Link
+                    href="/songs"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    <Music4 size={12} /> {text.openFullPlaylist}
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    <Settings2 size={12} /> {text.settings}
+                  </Link>
+                </div>
               </div>
 
               <div data-tab-item className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1398,12 +1693,14 @@ export default function Home() {
                   </Link>
                 </div>
 
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
                   {profileTracks.length > 0 ? (
                     profileTracks.map((song, index) => (
                       <p
                         key={song.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
+                        className={`flex items-center justify-between bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700 ${
+                          index !== profileTracks.length - 1 ? "border-b border-slate-200" : ""
+                        }`}
                       >
                         <span className="truncate">
                           <span className="mr-1 font-semibold text-slate-500">{index + 1}.</span>
@@ -1413,9 +1710,7 @@ export default function Home() {
                       </p>
                     ))
                   ) : (
-                    <p className="rounded-xl border border-dashed border-slate-300 px-2.5 py-2 text-[11px] text-slate-500">
-                      {text.noTracks}
-                    </p>
+                    <p className="bg-slate-50 px-2.5 py-2 text-[11px] text-slate-500">{text.noTracks}</p>
                   )}
                 </div>
 
@@ -1438,20 +1733,23 @@ export default function Home() {
                 </div>
               </div>
 
-              <div data-tab-item className="space-y-2">
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3">
+              <div data-tab-item className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]">
+                <div className="flex items-center justify-between border-b border-slate-200 px-3 py-3">
                   <span className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <BellRing size={15} /> {text.notifications}
                   </span>
                   <ChevronRight size={16} className="text-slate-300" />
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3">
+                <Link
+                  href="/settings"
+                  className="flex items-center justify-between border-b border-slate-200 px-3 py-3"
+                >
                   <span className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <Settings2 size={15} /> {text.settings}
                   </span>
                   <ChevronRight size={16} className="text-slate-300" />
-                </div>
-                <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3">
+                </Link>
+                <div className="flex items-center justify-between px-3 py-3">
                   <span className="inline-flex items-center gap-2 text-sm text-slate-700">
                     <Sunrise size={15} /> {text.tips}
                   </span>
@@ -1465,58 +1763,37 @@ export default function Home() {
         {isBooting && (
           <div
             ref={splashRef}
-            className="absolute inset-0 z-[1200] flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#fb923c_0%,#be123c_38%,#312e81_100%)] p-6 text-white"
+            className="absolute inset-0 z-[1200] flex items-center justify-center overflow-hidden p-6 text-white"
           >
-            <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-white/20 blur-3xl" />
-            <div className="pointer-events-none absolute -right-20 bottom-10 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: "url('https://i.postimg.cc/FzSLnvWN/page-loading-bg.png')",
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-900/55 to-black/78" />
+            <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
+            <div className="pointer-events-none absolute -right-20 bottom-10 h-56 w-56 rounded-full bg-cyan-300/15 blur-3xl" />
             <div
               data-splash="panel"
-              className="relative w-full max-w-[330px] rounded-3xl border border-white/25 bg-white/15 p-5 shadow-[0_30px_70px_-40px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+              className="relative flex w-full max-w-[330px] flex-col items-center justify-center rounded-[1.9rem] border border-white/25 bg-white/10 px-5 py-6 shadow-[0_30px_70px_-36px_rgba(0,0,0,0.82)] backdrop-blur-xl"
             >
-              <div
-                data-splash="halo"
-                className="pointer-events-none absolute left-1/2 top-7 h-36 w-36 -translate-x-1/2 rounded-full border border-white/35"
-              />
-              <div
+              <Image
                 data-splash="logo"
-                className="relative mx-auto h-28 w-28 overflow-hidden rounded-[1.8rem] border border-white/35 bg-white/10 shadow-[0_20px_38px_-24px_rgba(0,0,0,0.62)]"
-              >
-                <Image
-                  src="/icon-travel.png"
-                  alt="Angkor Go icon"
-                  fill
-                  sizes="112px"
-                  priority
-                  className="object-cover scale-[2.5]"
-                />
+                src="/logo-travel.png"
+                alt="Angkor Go logo"
+                width={246}
+                height={82}
+                priority
+                className="h-auto w-[82%] max-w-[246px] object-contain drop-shadow-[0_20px_38px_rgba(0,0,0,0.42)]"
+              />
+              <div data-splash="loader" className="mt-5 flex items-center justify-center gap-1.5">
+                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white [animation-delay:-0.25s]" />
+                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white [animation-delay:-0.12s]" />
+                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white" />
               </div>
-              <h2 data-splash="title" className="app-heading mt-4 text-2xl">
-                {language === "kh" ? "កំពុងរៀបចំដំណើរ..." : "Preparing your trip..."}
-              </h2>
-              <p data-splash="subtitle" className="mt-1 text-xs text-white/80">
-                {text.tagline}
-              </p>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/25">
-                <span data-splash="meter" className="block h-full bg-white" />
-              </div>
-
-              <div className="mt-3 rounded-xl border border-white/25 bg-black/15 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">
-                  {text.introTitle}
-                </p>
-                <p className="mt-0.5 text-xs font-semibold">{introTrackLabel}</p>
-                <p className="text-[11px] text-white/80">
-                  {formatAudioClock(introCurrentTime)} / {formatAudioClock(introDuration)}
-                </p>
-                <div data-splash="beats" className="mt-2 flex items-end gap-1">
-                  <span className={`h-2 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse" : ""}`} />
-                  <span className={`h-3 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:90ms]" : ""}`} />
-                  <span className={`h-4 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:150ms]" : ""}`} />
-                  <span className={`h-3 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:210ms]" : ""}`} />
-                </div>
-                {introAutoplayBlocked && (
-                  <p className="mt-1 text-[10px] text-amber-100">{text.introAutoplayBlocked}</p>
-                )}
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                <span className="block h-full w-1/2 animate-pulse rounded-full bg-white/85" />
               </div>
             </div>
           </div>
