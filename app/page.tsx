@@ -1,7 +1,8 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import gsap from "gsap";
 import {
   BellRing,
@@ -9,43 +10,32 @@ import {
   Camera,
   ChevronRight,
   Clock3,
+  Headphones,
   Hand,
   Heart,
   House,
   Languages,
-  LocateFixed,
-  MapPin,
-  MapPinCheck,
   MapPinned,
+  Music4,
   Navigation,
+  Pause,
+  Play,
+  PlayCircle,
+  Radio,
   Search,
   Settings2,
   Shirt,
-  Sparkles,
   Sunrise,
-  Ticket,
-  Trophy,
   UserRound,
   Volume2,
   X,
 } from "lucide-react";
 import { locationTypes, siemReapLocations } from "@/data/locations";
-import { GuideLocation, LocationMood, LocationType } from "@/types/location";
-import WeatherWidget from "@/components/WeatherWidget";
-import TukTukPrice from "@/components/TukTukPrice";
-import CrowdHeatTimeline from "@/components/CrowdHeatTimeline";
-import SmartDayPlanner from "@/components/SmartDayPlanner";
-import PhotoMissions from "@/components/PhotoMissions";
+import { GuideLocation, LocationType } from "@/types/location";
+import { SongTrack } from "@/types/song";
 import EmergencyToolkit from "@/components/EmergencyToolkit";
-import TimeTravelCompare from "@/components/TimeTravelCompare";
-import AmbiencePlayer from "@/components/AmbiencePlayer";
 import {
-  getLocationMood,
-  getMoodIcon,
-  getMoodLabel,
-  moodOrder,
-} from "@/lib/placeMeta";
-import {
+  CambodiaTimeSnapshot,
   calculateDistanceKm,
   formatDistanceKm,
   getCambodiaTimeSnapshot,
@@ -54,19 +44,40 @@ import {
 type LanguageMode = "en" | "kh";
 type AppTab = "home" | "place" | "save" | "profile";
 
-type MapProps = {
-  locations: GuideLocation[];
-  activeLoc: GuideLocation | null;
-  language: LanguageMode;
-  onMapReady?: () => void;
-};
+function createInitialTimeSnapshot(): CambodiaTimeSnapshot {
+  return {
+    hour: 0,
+    minute: 0,
+    totalMinutes: 0,
+    formattedTime: "--:--",
+    formattedDate: "---",
+    isGoldenHour: false,
+    phase: "day",
+  };
+}
 
-const Map = dynamic<MapProps>(() => import("@/components/Map"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full animate-pulse bg-gradient-to-br from-rose-100 via-orange-50 to-amber-100" />
-  ),
-});
+function parseSavedIds(raw: string | null): number[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as number[];
+    return Array.isArray(parsed) ? parsed.filter((id) => Number.isInteger(id)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatAudioClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "0:00";
+  }
+
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
 
 const uiText = {
   en: {
@@ -88,6 +99,21 @@ const uiText = {
     sunriseSpot: "Best sunrise",
     startExplore: "Explore now",
     mapLive: "Live map",
+    musicLounge: "Music Lounge",
+    musicLoungeDesc: "Play local travel vibes while planning your route.",
+    openMusic: "Open Playlist",
+    tracks: "Tracks",
+    noTracks: "Add .mp3 files to /public/songs",
+    introTitle: "Intro Soundtrack",
+    introDesc: "Auto intro: Intro-Angkor (44s) then nisai-intro (18s).",
+    introNow: "Now Playing",
+    introAutoplayBlocked: "Autoplay may be blocked by browser. Tap Play to start.",
+    introReplay: "Replay Intro",
+    introPlay: "Play Intro",
+    introPause: "Pause Intro",
+    profilePlaylist: "My Playlist",
+    profilePlaylistDesc: "Quick access to your uploaded MP3 tracks.",
+    openFullPlaylist: "Open Full Playlist",
     noResultTitle: "No place found",
     noResultDesc: "Try another keyword or category.",
     duration: "Duration",
@@ -159,6 +185,21 @@ const uiText = {
     sunriseSpot: "កន្លែងថ្ងៃរះល្អបំផុត",
     startExplore: "ចាប់ផ្តើមស្វែងរក",
     mapLive: "ផែនទីបន្តផ្ទាល់",
+    musicLounge: "Music Lounge",
+    musicLoungeDesc: "Play local travel vibes while planning your route.",
+    openMusic: "Open Playlist",
+    tracks: "Tracks",
+    noTracks: "Add .mp3 files to /public/songs",
+    introTitle: "Intro Soundtrack",
+    introDesc: "Auto intro: Intro-Angkor (44s) then nisai-intro (18s).",
+    introNow: "Now Playing",
+    introAutoplayBlocked: "Autoplay may be blocked by browser. Tap Play to start.",
+    introReplay: "Replay Intro",
+    introPlay: "Play Intro",
+    introPause: "Pause Intro",
+    profilePlaylist: "My Playlist",
+    profilePlaylistDesc: "Quick access to your uploaded MP3 tracks.",
+    openFullPlaylist: "Open Full Playlist",
     noResultTitle: "មិនមានកន្លែងត្រូវនឹងស្វែងរក",
     noResultDesc: "សាកល្បងពាក្យផ្សេង ឬប្តូរប្រភេទ។",
     duration: "រយៈពេល",
@@ -238,7 +279,20 @@ const navItems = [
   { key: "profile", icon: UserRound },
 ] as const;
 
-const checkInRadiusKm = 0.35;
+const introSequenceTracks = [
+  {
+    src: "/songs/Intro-Angkor.mp3",
+    labelEn: "Intro Angkor",
+    labelKh: "Intro Angkor",
+    duration: 44,
+  },
+  {
+    src: "/songs/nisai-intro.mp3",
+    labelEn: "Nisai Intro",
+    labelKh: "Nisai Intro",
+    duration: 18,
+  },
+] as const;
 
 function toGoogleMapsLink(location: GuideLocation) {
   return `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
@@ -261,58 +315,36 @@ export default function Home() {
   const rootRef = useRef<HTMLElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const etiquetteCardRef = useRef<HTMLDivElement | null>(null);
+  const splashRef = useRef<HTMLDivElement | null>(null);
+  const introAudioRef = useRef<HTMLAudioElement | null>(null);
+  const hasLoadedSavedIdsRef = useRef(false);
 
   const [language, setLanguage] = useState<LanguageMode>("en");
   const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [activeType, setActiveType] = useState<LocationType | "All">("All");
-  const [activeMood, setActiveMood] = useState<LocationMood | "All">("All");
+  const [isNearbyOnly, setIsNearbyOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedLocId, setSelectedLocId] = useState(siemReapLocations[0].id);
-  const [savedIds, setSavedIds] = useState<number[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    try {
-      const raw = window.localStorage.getItem("sr_saved_ids");
-      if (!raw) {
-        return [];
-      }
-      const parsed = JSON.parse(raw) as number[];
-      return Array.isArray(parsed) ? parsed.filter((id) => Number.isInteger(id)) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [checkedInIds, setCheckedInIds] = useState<number[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    try {
-      const raw = window.localStorage.getItem("sr_checkedin_ids");
-      if (!raw) {
-        return [];
-      }
-      const parsed = JSON.parse(raw) as number[];
-      return Array.isArray(parsed) ? parsed.filter((id) => Number.isInteger(id)) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [checkingInId, setCheckingInId] = useState<number | null>(null);
-  const [checkInMessage, setCheckInMessage] = useState<string>("");
-  const [, setClockTick] = useState<number>(() => Date.now());
+  const [savedIds, setSavedIds] = useState<number[]>([]);
   const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [deferredInstallEvent, setDeferredInstallEvent] = useState<Event | null>(null);
   const [hasShownEtiquette, setHasShownEtiquette] = useState(false);
   const [isEtiquetteOpen, setIsEtiquetteOpen] = useState(false);
-  const [isMapReady, setIsMapReady] = useState(false);
+  const [isBooting, setIsBooting] = useState(true);
+  const [songCount, setSongCount] = useState<number | null>(null);
+  const [songLibrary, setSongLibrary] = useState<SongTrack[]>([]);
+  const [introTrackIndex, setIntroTrackIndex] = useState(0);
+  const [introCurrentTime, setIntroCurrentTime] = useState(0);
+  const [introDuration, setIntroDuration] = useState<number>(introSequenceTracks[0].duration);
+  const [isIntroPlaying, setIsIntroPlaying] = useState(false);
+  const [introAutoplayBlocked, setIntroAutoplayBlocked] = useState(false);
+  const [hasStartedIntro, setHasStartedIntro] = useState(false);
+  const [timeSnapshot, setTimeSnapshot] = useState<CambodiaTimeSnapshot>(
+    createInitialTimeSnapshot,
+  );
 
   const text = uiText[language];
   const savedSet = useMemo(() => new Set(savedIds), [savedIds]);
-  const checkedInSet = useMemo(() => new Set(checkedInIds), [checkedInIds]);
-  const timeSnapshot = getCambodiaTimeSnapshot(language);
 
   const themeClass =
     timeSnapshot.phase === "golden"
@@ -326,8 +358,6 @@ export default function Home() {
 
     return siemReapLocations.filter((location) => {
       const typeMatch = activeType === "All" || location.type === activeType;
-      const moodMatch =
-        activeMood === "All" || getLocationMood(location) === activeMood;
       const searchPool = [
         location.name,
         location.nameKh,
@@ -339,27 +369,18 @@ export default function Home() {
       const queryMatch =
         normalizedQuery.length === 0 ||
         searchPool.some((value) => value.toLowerCase().includes(normalizedQuery));
+      const nearbyMatch =
+        !isNearbyOnly ||
+        !userPosition ||
+        calculateDistanceKm(userPosition.lat, userPosition.lng, location.lat, location.lng) <= 8;
 
-      return typeMatch && moodMatch && queryMatch;
+      return typeMatch && queryMatch && nearbyMatch;
     });
-  }, [activeMood, activeType, query]);
-
-  const activeLocation =
-    filteredLocations.find((location) => location.id === selectedLocId) ??
-    filteredLocations[0] ??
-    null;
+  }, [activeType, isNearbyOnly, query, userPosition]);
 
   const savedLocations = useMemo(
     () => siemReapLocations.filter((location) => savedSet.has(location.id)),
     [savedSet],
-  );
-
-  const checkedInTempleCount = useMemo(
-    () =>
-      siemReapLocations.filter(
-        (location) => location.type === "Temple" && checkedInSet.has(location.id),
-      ).length,
-    [checkedInSet],
   );
 
   const typeCounts = useMemo(() => {
@@ -384,30 +405,6 @@ export default function Home() {
     );
   }, []);
 
-  const moodCounts = useMemo(() => {
-    return moodOrder.reduce(
-      (acc, mood) => {
-        if (mood === "All") {
-          acc.All = siemReapLocations.length;
-          return acc;
-        }
-
-        acc[mood] = siemReapLocations.filter(
-          (location) => getLocationMood(location) === mood,
-        ).length;
-        return acc;
-      },
-      {
-        All: 0,
-        Epic: 0,
-        Adventurous: 0,
-        Peaceful: 0,
-        "Local Life": 0,
-        "Cultural Night": 0,
-      } as Record<LocationMood | "All", number>,
-    );
-  }, []);
-
   useEffect(() => {
     const context = gsap.context(() => {
       gsap.fromTo(
@@ -426,6 +423,73 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const context = gsap.context(() => {
+      const timeline = gsap.timeline();
+      timeline
+        .fromTo(
+          "[data-splash='panel']",
+          { opacity: 0, y: 24, scale: 0.96 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "power3.out" },
+        )
+        .fromTo(
+          "[data-splash='logo']",
+          { opacity: 0, scale: 0.78, y: 16 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: "power3.out" },
+          "-=0.2",
+        )
+        .fromTo(
+          "[data-splash='halo']",
+          { opacity: 0, rotate: -18, scale: 0.8 },
+          { opacity: 1, rotate: 0, scale: 1, duration: 0.7, ease: "power2.out" },
+          "-=0.55",
+        )
+        .fromTo(
+          "[data-splash='title']",
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" },
+          "-=0.25",
+        )
+        .fromTo(
+          "[data-splash='subtitle']",
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+          "-=0.2",
+        )
+        .fromTo(
+          "[data-splash='meter']",
+          { scaleX: 0 },
+          { scaleX: 1, duration: 1, ease: "power2.inOut", transformOrigin: "left center" },
+          "-=0.12",
+        )
+        .fromTo(
+          "[data-splash='beats']",
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+          "-=0.3",
+        );
+    }, splashRef);
+
+    const timer = window.setTimeout(() => {
+      setIsBooting(false);
+    }, 3200);
+
+    return () => {
+      context.revert();
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateTime = () => {
+      setTimeSnapshot(getCambodiaTimeSnapshot(language));
+    };
+
+    updateTime();
+    const timer = window.setInterval(updateTime, 60_000);
+    return () => window.clearInterval(timer);
+  }, [language]);
+
+  useEffect(() => {
     if (!contentRef.current) {
       return;
     }
@@ -441,25 +505,23 @@ export default function Home() {
     language,
     filteredLocations.length,
     savedLocations.length,
-    checkedInTempleCount,
-    activeLocation?.id,
   ]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setClockTick(Date.now());
-    }, 60_000);
+    const initialSavedIds = parseSavedIds(window.localStorage.getItem("sr_saved_ids"));
 
-    return () => window.clearInterval(timer);
+    queueMicrotask(() => {
+      setSavedIds(initialSavedIds);
+      hasLoadedSavedIdsRef.current = true;
+    });
   }, []);
 
   useEffect(() => {
+    if (!hasLoadedSavedIdsRef.current) {
+      return;
+    }
     window.localStorage.setItem("sr_saved_ids", JSON.stringify(savedIds));
   }, [savedIds]);
-
-  useEffect(() => {
-    window.localStorage.setItem("sr_checkedin_ids", JSON.stringify(checkedInIds));
-  }, [checkedInIds]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) {
@@ -497,6 +559,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/songs")
+      .then((response) => response.json() as Promise<{ count?: number; songs?: SongTrack[] }>)
+      .then((payload) => {
+        if (!isMounted) {
+          return;
+        }
+        setSongLibrary(Array.isArray(payload.songs) ? payload.songs : []);
+        setSongCount(typeof payload.count === "number" ? payload.count : 0);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setSongLibrary([]);
+        setSongCount(0);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isEtiquetteOpen || !etiquetteCardRef.current) {
       return;
     }
@@ -508,21 +595,120 @@ export default function Home() {
     );
   }, [isEtiquetteOpen, language]);
 
+  const playTrackByIndex = useCallback(async (index: number) => {
+    const audio = introAudioRef.current;
+    const track = introSequenceTracks[index];
+
+    if (!audio || !track) {
+      return false;
+    }
+
+    audio.src = track.src;
+    audio.currentTime = 0;
+    audio.load();
+    setIntroDuration(track.duration);
+
+    try {
+      await audio.play();
+      setIsIntroPlaying(true);
+      setIntroAutoplayBlocked(false);
+      return true;
+    } catch {
+      setIsIntroPlaying(false);
+      setIntroAutoplayBlocked(true);
+      return false;
+    }
+  }, []);
+
+  const handleIntroReplay = useCallback(async () => {
+    setHasStartedIntro(true);
+    setIntroTrackIndex(0);
+    setIntroCurrentTime(0);
+    await playTrackByIndex(0);
+  }, [playTrackByIndex]);
+
+  const handleIntroToggle = useCallback(async () => {
+    const audio = introAudioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (isIntroPlaying) {
+      audio.pause();
+      setIsIntroPlaying(false);
+      return;
+    }
+
+    setHasStartedIntro(true);
+
+    if (!audio.src) {
+      await playTrackByIndex(introTrackIndex);
+      return;
+    }
+
+    try {
+      await audio.play();
+      setIsIntroPlaying(true);
+      setIntroAutoplayBlocked(false);
+    } catch {
+      setIsIntroPlaying(false);
+      setIntroAutoplayBlocked(true);
+    }
+  }, [introTrackIndex, isIntroPlaying, playTrackByIndex]);
+
+  const handleIntroEnded = useCallback(async () => {
+    const nextIndex = introTrackIndex + 1;
+
+    if (nextIndex < introSequenceTracks.length) {
+      setIntroTrackIndex(nextIndex);
+      setIntroCurrentTime(0);
+      await playTrackByIndex(nextIndex);
+      return;
+    }
+
+    setIsIntroPlaying(false);
+    setIntroTrackIndex(0);
+    setIntroCurrentTime(0);
+    const audio = introAudioRef.current;
+    if (!audio) {
+      return;
+    }
+    audio.src = introSequenceTracks[0].src;
+    audio.currentTime = 0;
+    audio.load();
+    setIntroDuration(introSequenceTracks[0].duration);
+  }, [introTrackIndex, playTrackByIndex]);
+
+  useEffect(() => {
+    if (!isBooting || hasStartedIntro) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void handleIntroReplay();
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [hasStartedIntro, handleIntroReplay, isBooting]);
+
   const localizeName = (location: GuideLocation) =>
     language === "kh" ? location.nameKh : location.name;
 
   const localizeDescription = (location: GuideLocation) =>
     language === "kh" ? location.descKh : location.desc;
 
-  const localizeHighlight = (location: GuideLocation) =>
-    language === "kh" ? location.highlightKh : location.highlight;
-
   const localizeType = (type: LocationType) => typeLabels[type][language];
-  const localizeMood = (mood: LocationMood) => getMoodLabel(mood, language);
-  const moodIcon = (mood: LocationMood) => getMoodIcon(mood);
-  const isGoldenHourAtAngkor = timeSnapshot.isGoldenHour && activeLocation?.id === 1;
-  const plannerStartLat = userPosition?.lat ?? 13.3671;
-  const plannerStartLng = userPosition?.lng ?? 103.8448;
+  const introTrack = introSequenceTracks[introTrackIndex] ?? introSequenceTracks[0];
+  const introTrackLabel = language === "kh" ? introTrack.labelKh : introTrack.labelEn;
+  const introProgress =
+    introDuration > 0 ? Math.min((introCurrentTime / introDuration) * 100, 100) : 0;
+  const profileTracks = songLibrary.slice(0, 4);
+  const nearbyToggleText = language === "kh" ? "ក្បែរខ្ញុំ (8km)" : "Nearby (8km)";
+  const localFavoriteLabel = language === "kh" ? "ពេញនិយមក្នុងតំបន់" : "Local Favorites";
+  const localPicks = siemReapLocations.filter(
+    (location) =>
+      location.type === "Dining" || location.type === "Culture" || location.type === "Shopping",
+  );
   const installTitle =
     language === "kh" ? "Offline Trip Mode" : "Offline Trip Mode";
   const installSubtitle =
@@ -532,16 +718,13 @@ export default function Home() {
   const installAction =
     language === "kh" ? "Install app" : "Install app";
   const installReady =
-    language === "kh" ? "App is install-ready on this device." : "App is install-ready on this device.";
+    language === "kh"
+      ? "App is install-ready on this device."
+      : "App is install-ready on this device.";
   const installDone =
-    language === "kh" ? "Already installed or unavailable on this browser." : "Already installed or unavailable on this browser.";
-
-  const activeAmbience =
-    activeLocation?.type === "Temple"
-      ? "temple"
-      : activeLocation?.type === "Nature"
-        ? "jungle"
-        : "city";
+    language === "kh"
+      ? "Already installed or unavailable on this browser."
+      : "Already installed or unavailable on this browser.";
 
   const etiquetteTips = [
     { key: "dress", icon: Shirt, text: text.etiquetteItems.dress },
@@ -554,9 +737,6 @@ export default function Home() {
     setActiveTab(nextTab);
 
     if (nextTab === "place") {
-      setIsMapReady(false);
-      setCheckInMessage("");
-
       if (!hasShownEtiquette) {
         setHasShownEtiquette(true);
         setIsEtiquetteOpen(true);
@@ -587,58 +767,13 @@ export default function Home() {
     );
   };
 
-  const handleCheckIn = (location: GuideLocation) => {
-    if (!("geolocation" in navigator)) {
-      setCheckInMessage(text.passportNeedLocation);
-      return;
-    }
-
-    setCheckingInId(location.id);
-    setCheckInMessage(text.passportChecking);
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const distanceKm = calculateDistanceKm(
-          position.coords.latitude,
-          position.coords.longitude,
-          location.lat,
-          location.lng,
-        );
-
-        if (distanceKm <= checkInRadiusKm) {
-          setCheckedInIds((previousIds) =>
-            previousIds.includes(location.id) ? previousIds : [...previousIds, location.id],
-          );
-          setCheckInMessage(
-            language === "kh"
-              ? `${text.checkInDone}: ${localizeName(location)}`
-              : `${text.checkInDone}: ${localizeName(location)}`,
-          );
-        } else {
-          setCheckInMessage(
-            language === "kh"
-              ? `អ្នកនៅឆ្ងាយ ${formatDistanceKm(distanceKm)}។ សូមទៅជិតជាងនេះដើម្បី Check-in។`
-              : `You are ${formatDistanceKm(distanceKm)} away. Move closer to check in.`,
-          );
-        }
-
-        setCheckingInId(null);
-      },
-      () => {
-        setCheckInMessage(text.passportNeedLocation);
-        setCheckingInId(null);
-      },
-      { enableHighAccuracy: true, timeout: 12_000 },
-    );
-  };
-
   return (
     <main
       ref={rootRef}
       className={`relative min-h-screen bg-[var(--screen-bg)] px-3 py-4 transition-colors md:px-6 ${themeClass}`}
     >
       <div
-        className={`mx-auto flex h-[calc(100vh-2rem)] w-full max-w-[460px] flex-col overflow-hidden rounded-[34px] border border-slate-200/80 bg-[var(--phone-bg)] shadow-[0_28px_60px_-30px_rgba(15,23,42,0.55)] ${language === "kh" ? "lang-kh" : "lang-en"}`}
+        className={`relative mx-auto flex h-[calc(100vh-2rem)] w-full max-w-[460px] flex-col overflow-hidden rounded-[34px] border border-slate-200/80 bg-[var(--phone-bg)] shadow-[0_28px_60px_-30px_rgba(15,23,42,0.55)] ${language === "kh" ? "lang-kh" : "lang-en"}`}
       >
         <header
           data-animate="top"
@@ -655,9 +790,15 @@ export default function Home() {
 
           <div className="relative z-10 flex items-start justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-100">
-                {text.brand}
-              </p>
+              <div className="inline-flex h-10 overflow-hidden rounded-xl border border-white/35 bg-white/15 backdrop-blur">
+                <Image
+                  src="/logo-travel.png"
+                  alt="Angkor Go"
+                  width={126}
+                  height={40}
+                  className="h-full w-auto object-cover scale-110"
+                />
+              </div>
               <h1 className="app-heading mt-1 text-[1.55rem] leading-none">
                 {text.tabs[activeTab]}
               </h1>
@@ -665,9 +806,11 @@ export default function Home() {
               <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium">
                 <Sunrise size={12} />
                 <span>{text.sunsetTracker}</span>
-                <span className="font-semibold">{timeSnapshot.formattedTime}</span>
+                <span suppressHydrationWarning className="font-semibold">
+                  {timeSnapshot.formattedTime}
+                </span>
               </div>
-              <p className="mt-1 text-[11px] text-red-100">
+              <p suppressHydrationWarning className="mt-1 text-[11px] text-red-100">
                 {timeSnapshot.formattedDate} • {text.goldenHour}: {text.goldenRange}
               </p>
             </div>
@@ -695,69 +838,104 @@ export default function Home() {
           </div>
         </header>
 
-        <section ref={contentRef} className="flex-1 overflow-y-auto px-4 pb-24 pt-4">
+        <section
+          ref={contentRef}
+          className="flex-1 overflow-y-auto px-4 pb-24 pt-4"
+        >
           {activeTab === "home" && (
             <div className="space-y-3">
               <div
                 data-tab-item
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+                className="relative overflow-hidden rounded-[1.6rem] border border-red-300/70 bg-gradient-to-br from-red-600 via-orange-500 to-amber-400 p-4 text-white shadow-[0_24px_44px_-28px_rgba(190,24,93,0.85)]"
               >
-                <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600">
-                  <Sparkles size={12} /> {text.mapLive}
+                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/20 blur-sm" />
+                <div className="pointer-events-none absolute -bottom-12 left-8 h-24 w-24 rounded-full bg-amber-200/35" />
+
+                <div className="relative z-10">
+                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
+                    <Radio size={12} /> {text.mapLive}
+                  </div>
+                  <h2 className="app-heading text-[1.12rem] leading-tight">
+                    {language === "kh" ? "ផែនការដំណើរឆ្លាតវៃ" : "Plan Smarter. Explore Better."}
+                  </h2>
+                  <p className="mt-1 text-xs text-orange-50/95">{text.welcome}</p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("place")}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-950/85 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                    >
+                      {text.startExplore} <ChevronRight size={14} />
+                    </button>
+                    <Link
+                      href="/songs"
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100"
+                    >
+                      <Music4 size={13} /> {text.openMusic}
+                    </Link>
+                  </div>
                 </div>
-                <p className="text-sm leading-relaxed text-slate-700">{text.welcome}</p>
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("place")}
-                  className="mt-3 inline-flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-700"
-                >
-                  {text.startExplore} <ChevronRight size={14} />
-                </button>
               </div>
 
               <div
                 data-tab-item
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_18px_34px_-26px_rgba(15,23,42,0.6)]"
               >
-                <p className="app-heading text-base text-slate-900">{text.aboutTitle}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{text.aboutDesc}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                    <MapPinned size={11} className="mr-1 inline-block" />
-                    {text.mapLive}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                    <Languages size={11} className="mr-1 inline-block" />
-                    EN / KH
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                    <Heart size={11} className="mr-1 inline-block" />
-                    {text.savedPlaces}
-                  </span>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {text.introTitle}
+                    </p>
+                    <h3 className="app-heading mt-0.5 text-base text-slate-900">{introTrackLabel}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-600">{text.introDesc}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-100 p-2 text-slate-700">
+                    <Headphones size={16} />
+                  </div>
                 </div>
-              </div>
 
-              <div data-tab-item className="grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    {text.totalPlaces}
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">{siemReapLocations.length}</p>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 transition-[width] duration-500"
+                    style={{ width: `${Math.max(introProgress, isIntroPlaying ? 4 : 0)}%` }}
+                  />
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    {text.savedPlaces}
-                  </p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">{savedIds.length}</p>
+
+                <div className="mt-1.5 flex items-center justify-between text-[11px] font-medium text-slate-500">
+                  <span>{text.introNow}: {introTrackLabel}</span>
+                  <span>{formatAudioClock(introCurrentTime)} / {formatAudioClock(introDuration)}</span>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    {text.sunriseSpot}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">
-                    {language === "kh" ? "អង្គរវត្ត" : "Angkor Wat"}
-                  </p>
+
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleIntroToggle()}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white hover:bg-slate-700"
+                  >
+                    {isIntroPlaying ? <Pause size={13} /> : <Play size={13} />}
+                    {isIntroPlaying ? text.introPause : text.introPlay}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleIntroReplay()}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+                  >
+                    <Radio size={13} /> {text.introReplay}
+                  </button>
+                  <Link
+                    href="/songs"
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    <Music4 size={13} /> {text.openMusic}
+                  </Link>
                 </div>
+
+                {introAutoplayBlocked && (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[11px] text-amber-700">
+                    {text.introAutoplayBlocked}
+                  </p>
+                )}
               </div>
 
               <div data-tab-item className="space-y-2">
@@ -770,7 +948,7 @@ export default function Home() {
                       setSelectedLocId(location.id);
                       handleTabChange("place");
                     }}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_14px_30px_-26px_rgba(15,23,42,0.65)] transition-transform hover:-translate-y-0.5"
+                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_16px_32px_-26px_rgba(15,23,42,0.65)] transition-transform hover:-translate-y-0.5"
                   >
                     <div
                       className={`inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xs font-bold text-white ${typeCardColor[location.type]}`}
@@ -797,63 +975,6 @@ export default function Home() {
 
           {activeTab === "place" && (
             <div className="space-y-3">
-              <div
-                data-tab-item
-                className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                      {text.passportTitle}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-slate-700">
-                      {text.passportProgress}: {checkedInTempleCount}/5
-                    </p>
-                  </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
-                    <Trophy size={12} /> {checkedInTempleCount >= 5 ? "100%" : `${checkedInTempleCount * 20}%`}
-                  </span>
-                </div>
-
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-700"
-                    style={{ width: `${Math.min((checkedInTempleCount / 5) * 100, 100)}%` }}
-                  />
-                </div>
-
-                <p className="mt-2 text-[11px] text-slate-600">
-                  {checkedInTempleCount >= 5 ? text.passportUnlocked : text.passportLocked}
-                </p>
-                {checkedInTempleCount >= 5 && (
-                  <p className="mt-1 rounded-xl bg-emerald-50 px-2.5 py-2 text-[11px] text-emerald-700">
-                    {text.secretTip}
-                  </p>
-                )}
-                {checkInMessage && (
-                  <p className="mt-2 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] text-slate-600">
-                    {checkInMessage}
-                  </p>
-                )}
-              </div>
-
-              {isGoldenHourAtAngkor && (
-                <div
-                  data-tab-item
-                  className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-100 via-orange-100 to-violet-100 p-3 text-[12px] font-semibold text-amber-900 shadow-[0_16px_30px_-24px_rgba(245,158,11,0.75)]"
-                >
-                  {text.goldenNow}
-                </div>
-              )}
-
-              <div data-tab-item>
-                <PhotoMissions
-                  locations={siemReapLocations}
-                  checkedInIds={checkedInIds}
-                  language={language}
-                />
-              </div>
-
               <div
                 data-tab-item
                 className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
@@ -896,148 +1017,42 @@ export default function Home() {
                       </button>
                     );
                   })}
+                  <button
+                    type="button"
+                    onClick={() => setIsNearbyOnly((previous) => !previous)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      isNearbyOnly
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-300 bg-white text-slate-600"
+                    }`}
+                  >
+                    {nearbyToggleText}
+                  </button>
                 </div>
 
                 <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {text.moods}
+                  {localFavoriteLabel}
                 </p>
                 <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
-                  {moodOrder.map((mood) => {
-                    const isActive = activeMood === mood;
-                    const label =
-                      mood === "All" ? text.all : `${moodIcon(mood)} ${localizeMood(mood)}`;
-
-                    return (
-                      <button
-                        key={mood}
-                        type="button"
-                        onClick={() => setActiveMood(mood)}
-                        className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                          isActive
-                            ? "border-violet-600 bg-violet-600 text-white"
-                            : "border-slate-300 bg-white text-slate-600"
-                        }`}
-                      >
-                        {label} ({moodCounts[mood]})
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div
-                data-tab-item
-                className="relative h-[255px] overflow-hidden rounded-2xl border border-slate-200 bg-white"
-              >
-                <Map
-                  locations={filteredLocations}
-                  activeLoc={activeLocation}
-                  language={language}
-                  onMapReady={() => setIsMapReady(true)}
-                />
-
-                <div className="absolute left-2 top-2 z-[455]">
-                  <AmbiencePlayer ambience={activeAmbience} language={language} />
-                </div>
-                <div className="pointer-events-none absolute right-2 top-2 z-[455] w-[170px]">
-                  <WeatherWidget language={language} />
-                </div>
-                <div className="pointer-events-none absolute bottom-2 left-2 z-[455] rounded-xl border border-white/50 bg-white/72 px-2 py-1.5 text-[10px] font-medium text-slate-700 backdrop-blur">
-                  <span className="mr-2 inline-flex items-center gap-1">
-                    <span className="inline-block h-0.5 w-4 bg-amber-400" /> Sunrise path
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="inline-block h-0.5 w-4 bg-violet-500" /> Sunset path
-                  </span>
-                </div>
-
-                {!isMapReady && (
-                  <div className="absolute inset-0 z-[450] flex items-center justify-center bg-white/78 backdrop-blur-sm">
-                    <div className="text-center">
-                      <div className="mx-auto mb-2 h-12 w-12 rounded-full border-4 border-red-100 border-t-red-500 animate-spin" />
-                      <p className="text-xs font-semibold text-slate-700">{text.mapLoadingTitle}</p>
-                      <p className="mt-1 text-[11px] text-slate-500">{text.mapLoadingDesc}</p>
-                    </div>
-                  </div>
-                )}
-
-                {isEtiquetteOpen && (
-                  <div className="absolute inset-0 z-[500] flex items-center justify-center bg-slate-900/38 p-3 backdrop-blur-[2px]">
-                    <div
-                      ref={etiquetteCardRef}
-                      className="w-full max-w-[340px] rounded-2xl bg-white p-4 shadow-[0_22px_45px_-24px_rgba(15,23,42,0.7)]"
+                  {localPicks.map((location) => (
+                    <Link
+                      key={location.id}
+                      href={`/place/${location.id}`}
+                      onClick={() => setSelectedLocId(location.id)}
+                      className="shrink-0 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
                     >
-                      <div className="mb-2 flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-600">
-                            {text.tips}
-                          </p>
-                          <h3 className="app-heading mt-0.5 text-base text-slate-900">
-                            {text.etiquetteTitle}
-                          </h3>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsEtiquetteOpen(false)}
-                          className="rounded-full bg-slate-100 p-1 text-slate-500 hover:bg-slate-200"
-                          aria-label={text.etiquetteNotNow}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-
-                      <p className="text-xs leading-relaxed text-slate-600">{text.etiquetteDesc}</p>
-
-                      <div className="mt-3 space-y-2">
-                        {etiquetteTips.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <p
-                              key={item.key}
-                              className="flex items-start gap-2 rounded-xl bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
-                            >
-                              <Icon size={13} className="mt-0.5 text-red-500" />
-                              <span>{item.text}</span>
-                            </p>
-                          );
-                        })}
-                      </div>
-
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsEtiquetteOpen(false)}
-                          className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
-                        >
-                          {text.etiquetteAction}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIsEtiquetteOpen(false)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                        >
-                          {text.etiquetteNotNow}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                      {localizeName(location)}
+                    </Link>
+                  ))}
+                </div>
               </div>
 
-              <div data-tab-item>
-                <SmartDayPlanner
-                  locations={filteredLocations}
-                  language={language}
-                  nowMinutes={timeSnapshot.totalMinutes}
-                  startLat={plannerStartLat}
-                  startLng={plannerStartLng}
-                  onSelectStop={(locationId) => setSelectedLocId(locationId)}
-                />
-              </div>
-
-              {activeLocation?.id === 1 && (
-                <div data-tab-item>
-                  <TimeTravelCompare language={language} />
+              {timeSnapshot.isGoldenHour && (
+                <div
+                  data-tab-item
+                  className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-100 via-orange-100 to-violet-100 p-3 text-[12px] font-semibold text-amber-900 shadow-[0_16px_30px_-24px_rgba(245,158,11,0.75)]"
+                >
+                  {text.goldenNow}
                 </div>
               )}
 
@@ -1045,9 +1060,7 @@ export default function Home() {
                 {filteredLocations.length > 0 ? (
                   filteredLocations.map((location) => {
                     const isSaved = savedSet.has(location.id);
-                    const isActive = activeLocation?.id === location.id;
-                    const mood = getLocationMood(location);
-                    const isCheckedIn = checkedInSet.has(location.id);
+                    const isSelected = selectedLocId === location.id;
                     const distanceKm = userPosition
                       ? calculateDistanceKm(
                           userPosition.lat,
@@ -1060,105 +1073,65 @@ export default function Home() {
                     return (
                       <article
                         key={location.id}
-                        className={`rounded-2xl border bg-white shadow-[0_14px_28px_-24px_rgba(15,23,42,0.65)] ${
-                          isActive ? "border-red-400" : "border-slate-200"
+                        className={`rounded-2xl border bg-white p-3 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.65)] ${
+                          isSelected ? "border-red-400" : "border-slate-200"
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedLocId(location.id)}
-                          className="w-full px-3 pb-1 pt-3 text-left"
-                        >
-                          <div className="mb-1 flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {localizeName(location)}
-                            </p>
-                            <MapPin size={14} className="text-red-500" />
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-[11px] font-bold text-white ${typeCardColor[location.type]}`}
+                          >
+                            {localizeType(location.type)}
                           </div>
-                          <p className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
-                            <span>{moodIcon(mood)}</span>
-                            {localizeMood(mood)}
-                          </p>
-                          <p className="line-clamp-2 text-xs text-slate-600">
-                            {localizeDescription(location)}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                              <Clock3 size={11} /> {location.duration}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                              {text.budget}: {localizeBudget(location.budget, language)}
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-900">{localizeName(location)}</p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{localizeDescription(location)}</p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                <Clock3 size={11} className="mr-1 inline-block" />
+                                {location.duration}
+                              </span>
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                <Sunrise size={11} className="mr-1 inline-block" />
+                                {location.bestTime}
+                              </span>
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                {text.budget}: {localizeBudget(location.budget, language)}
+                              </span>
+                              {distanceKm !== null && (
+                                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                                  {language === "kh" ? "ចម្ងាយ" : "Distance"}: {formatDistanceKm(distanceKm)}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <p className="mt-1 text-[11px] font-medium text-slate-500">
-                            {text.highlight}: {localizeHighlight(location)}
-                          </p>
-                          {distanceKm !== null && (
-                            <p className="mt-1 text-[11px] text-slate-500">
-                              {language === "kh" ? "ចម្ងាយ" : "Distance"}:{" "}
-                              {formatDistanceKm(distanceKm)}
-                            </p>
-                          )}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleSave(location.id)}
+                            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                              isSaved ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            <Heart size={14} fill={isSaved ? "currentColor" : "none"} />
+                          </button>
+                        </div>
 
-                        {isActive && (
-                          <div className="px-3 pb-2">
-                            <TukTukPrice
-                              destinationLat={location.lat}
-                              destinationLng={location.lng}
-                              userLat={userPosition?.lat ?? null}
-                              userLng={userPosition?.lng ?? null}
-                              language={language}
-                            />
-                            <CrowdHeatTimeline location={location} language={language} />
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between px-3 pb-3 pt-2">
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <Link
+                            href={`/place/${location.id}`}
+                            onClick={() => setSelectedLocId(location.id)}
+                            className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white hover:bg-slate-700"
+                          >
+                            {language === "kh" ? "មើលផែនទីពេញ" : "Open Full Map"}
+                          </Link>
                           <a
                             href={toGoogleMapsLink(location)}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+                            className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
                           >
                             <Navigation size={12} /> {text.directions}
                           </a>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleCheckIn(location)}
-                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-                                isCheckedIn
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-blue-600 text-white hover:bg-blue-700"
-                              }`}
-                            >
-                              {checkingInId === location.id ? (
-                                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                              ) : isCheckedIn ? (
-                                <MapPinCheck size={12} />
-                              ) : (
-                                <LocateFixed size={12} />
-                              )}
-                              {isCheckedIn ? text.checkInDone : text.passportAction}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleSave(location.id)}
-                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-                                isSaved
-                                  ? "bg-rose-50 text-rose-700"
-                                  : "bg-red-600 text-white hover:bg-red-700"
-                              }`}
-                            >
-                              {isSaved ? (
-                                <Heart size={12} fill="currentColor" />
-                              ) : (
-                                <Ticket size={12} />
-                              )}
-                              {isSaved ? text.saved : text.save}
-                            </button>
-                          </div>
                         </div>
                       </article>
                     );
@@ -1170,6 +1143,68 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {isEtiquetteOpen && (
+                <div className="fixed inset-0 z-[700] flex items-center justify-center bg-slate-900/38 p-3 backdrop-blur-[2px]">
+                  <div
+                    ref={etiquetteCardRef}
+                    className="w-full max-w-[340px] rounded-2xl bg-white p-4 shadow-[0_22px_45px_-24px_rgba(15,23,42,0.7)]"
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-600">
+                          {text.tips}
+                        </p>
+                        <h3 className="app-heading mt-0.5 text-base text-slate-900">
+                          {text.etiquetteTitle}
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEtiquetteOpen(false)}
+                        className="rounded-full bg-slate-100 p-1 text-slate-500 hover:bg-slate-200"
+                        aria-label={text.etiquetteNotNow}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    <p className="text-xs leading-relaxed text-slate-600">{text.etiquetteDesc}</p>
+
+                    <div className="mt-3 space-y-2">
+                      {etiquetteTips.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <p
+                            key={item.key}
+                            className="flex items-start gap-2 rounded-xl bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
+                          >
+                            <Icon size={13} className="mt-0.5 text-red-500" />
+                            <span>{item.text}</span>
+                          </p>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsEtiquetteOpen(false)}
+                        className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        {text.etiquetteAction}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEtiquetteOpen(false)}
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                      >
+                        {text.etiquetteNotNow}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1197,16 +1232,13 @@ export default function Home() {
                       {localizeDescription(location)}
                     </p>
                     <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedLocId(location.id);
-                          handleTabChange("place");
-                        }}
+                      <Link
+                        href={`/place/${location.id}`}
+                        onClick={() => setSelectedLocId(location.id)}
                         className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-slate-700"
                       >
-                        <MapPinned size={12} /> {text.openInPlaces}
-                      </button>
+                        <MapPinned size={12} /> {language === "kh" ? "មើលផែនទីពេញ" : "Open Full Map"}
+                      </Link>
                       <button
                         type="button"
                         onClick={() => toggleSave(location.id)}
@@ -1236,12 +1268,56 @@ export default function Home() {
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-500 text-white">
-                    <UserRound size={22} />
+                  <div className="relative h-20 w-20 overflow-hidden rounded-[1.15rem] border border-red-200 bg-gradient-to-br from-red-500 to-orange-500 shadow-[0_18px_35px_-24px_rgba(185,28,28,0.8)]">
+                    <Image
+                      src="/icon-travel.png"
+                      alt="Traveler profile"
+                      fill
+                      sizes="80px"
+                      className="object-cover scale-[2.4]"
+                    />
                   </div>
                   <div>
                     <h2 className="app-heading text-base text-slate-900">{text.profileName}</h2>
                     <p className="text-xs text-slate-600">{text.profileRole}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                data-tab-item
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {language === "kh" ? "ស្ថិតិដំណើរ" : "Travel Snapshot"}
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                    {language === "kh" ? "ប្រវត្តិ" : "Profile"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl border border-red-100 bg-gradient-to-b from-red-50 to-white p-3 text-center">
+                    <MapPinned size={14} className="mx-auto text-red-500" />
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.totalPlaces}
+                    </p>
+                    <p className="mt-0.5 text-lg font-bold text-slate-900">{siemReapLocations.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-rose-100 bg-gradient-to-b from-rose-50 to-white p-3 text-center">
+                    <Heart size={14} className="mx-auto text-rose-500" />
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.savedPlaces}
+                    </p>
+                    <p className="mt-0.5 text-lg font-bold text-slate-900">{savedIds.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-blue-100 bg-gradient-to-b from-blue-50 to-white p-3 text-center">
+                    <Music4 size={14} className="mx-auto text-blue-500" />
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {text.tracks}
+                    </p>
+                    <p className="mt-0.5 text-lg font-bold text-slate-900">{songCount ?? "--"}</p>
                   </div>
                 </div>
               </div>
@@ -1302,6 +1378,66 @@ export default function Home() {
                 <EmergencyToolkit language={language} />
               </div>
 
+              <div
+                data-tab-item
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {text.profilePlaylist}
+                    </p>
+                    <h3 className="app-heading mt-0.5 text-base text-slate-900">{text.musicLounge}</h3>
+                    <p className="mt-1 text-xs text-slate-600">{text.profilePlaylistDesc}</p>
+                  </div>
+                  <Link
+                    href="/songs"
+                    className="inline-flex items-center gap-1 rounded-xl bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    <PlayCircle size={13} /> {text.openFullPlaylist}
+                  </Link>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  {profileTracks.length > 0 ? (
+                    profileTracks.map((song, index) => (
+                      <p
+                        key={song.id}
+                        className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
+                      >
+                        <span className="truncate">
+                          <span className="mr-1 font-semibold text-slate-500">{index + 1}.</span>
+                          {song.title}
+                        </span>
+                        <Music4 size={12} className="shrink-0 text-slate-400" />
+                      </p>
+                    ))
+                  ) : (
+                    <p className="rounded-xl border border-dashed border-slate-300 px-2.5 py-2 text-[11px] text-slate-500">
+                      {text.noTracks}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleIntroToggle()}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-semibold text-white hover:bg-slate-700"
+                  >
+                    {isIntroPlaying ? <Pause size={13} /> : <Play size={13} />}
+                    {isIntroPlaying ? text.introPause : text.introPlay}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleIntroReplay()}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+                  >
+                    <Radio size={13} /> {text.introReplay}
+                  </button>
+                </div>
+              </div>
+
               <div data-tab-item className="space-y-2">
                 <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3">
                   <span className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -1325,6 +1461,87 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        {isBooting && (
+          <div
+            ref={splashRef}
+            className="absolute inset-0 z-[1200] flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#fb923c_0%,#be123c_38%,#312e81_100%)] p-6 text-white"
+          >
+            <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-white/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-20 bottom-10 h-56 w-56 rounded-full bg-cyan-300/20 blur-3xl" />
+            <div
+              data-splash="panel"
+              className="relative w-full max-w-[330px] rounded-3xl border border-white/25 bg-white/15 p-5 shadow-[0_30px_70px_-40px_rgba(0,0,0,0.75)] backdrop-blur-xl"
+            >
+              <div
+                data-splash="halo"
+                className="pointer-events-none absolute left-1/2 top-7 h-36 w-36 -translate-x-1/2 rounded-full border border-white/35"
+              />
+              <div
+                data-splash="logo"
+                className="relative mx-auto h-28 w-28 overflow-hidden rounded-[1.8rem] border border-white/35 bg-white/10 shadow-[0_20px_38px_-24px_rgba(0,0,0,0.62)]"
+              >
+                <Image
+                  src="/icon-travel.png"
+                  alt="Angkor Go icon"
+                  fill
+                  sizes="112px"
+                  priority
+                  className="object-cover scale-[2.5]"
+                />
+              </div>
+              <h2 data-splash="title" className="app-heading mt-4 text-2xl">
+                {language === "kh" ? "កំពុងរៀបចំដំណើរ..." : "Preparing your trip..."}
+              </h2>
+              <p data-splash="subtitle" className="mt-1 text-xs text-white/80">
+                {text.tagline}
+              </p>
+              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/25">
+                <span data-splash="meter" className="block h-full bg-white" />
+              </div>
+
+              <div className="mt-3 rounded-xl border border-white/25 bg-black/15 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">
+                  {text.introTitle}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold">{introTrackLabel}</p>
+                <p className="text-[11px] text-white/80">
+                  {formatAudioClock(introCurrentTime)} / {formatAudioClock(introDuration)}
+                </p>
+                <div data-splash="beats" className="mt-2 flex items-end gap-1">
+                  <span className={`h-2 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse" : ""}`} />
+                  <span className={`h-3 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:90ms]" : ""}`} />
+                  <span className={`h-4 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:150ms]" : ""}`} />
+                  <span className={`h-3 w-1 rounded bg-white/80 ${isIntroPlaying ? "animate-pulse [animation-delay:210ms]" : ""}`} />
+                </div>
+                {introAutoplayBlocked && (
+                  <p className="mt-1 text-[10px] text-amber-100">{text.introAutoplayBlocked}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <audio
+          ref={introAudioRef}
+          preload="auto"
+          onLoadedMetadata={(event) => {
+            const duration = event.currentTarget.duration;
+            if (Number.isFinite(duration) && duration > 0) {
+              setIntroDuration(duration);
+            }
+          }}
+          onTimeUpdate={(event) => setIntroCurrentTime(event.currentTarget.currentTime)}
+          onEnded={() => {
+            void handleIntroEnded();
+          }}
+          onPause={() => setIsIntroPlaying(false)}
+          onPlay={() => {
+            setIsIntroPlaying(true);
+            setIntroAutoplayBlocked(false);
+          }}
+          className="hidden"
+        />
 
         <nav
           data-animate="nav"

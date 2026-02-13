@@ -1,5 +1,12 @@
-const CACHE_NAME = "siem-reap-guide-v1";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/temple-marker.svg"];
+const CACHE_NAME = "siem-reap-guide-v2";
+const APP_SHELL = [
+  "/",
+  "/songs",
+  "/manifest.webmanifest",
+  "/icon-travel.png",
+  "/logo-travel.png",
+  "/temple-marker.svg",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Siem Reap Explorer",
+    name: "Angkor Go",
     short_name: "Angkor Go",
-    description: "Offline-ready Siem Reap temple guide with map planning and travel tools.",
+    description: "Modern Siem Reap travel app with smart place filters and full-screen map pages.",
     start_url: "/",
     display: "standalone",
     background_color: "#f8fafc",
@@ -12,9 +12,10 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "en",
     icons: [
       {
-        src: "/favicon.ico",
-        sizes: "48x48",
-        type: "image/x-icon",
+        src: "/icon-travel.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };

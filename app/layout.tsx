@@ -25,10 +25,14 @@ const moul = Moul({
 });
 
 export const metadata: Metadata = {
-  title: "Siem Reap Explorer",
+  title: "Angkor Go",
   description:
-    "Interactive Siem Reap travel planner with live map navigation, filters, and day-trip insights.",
+    "Interactive Siem Reap travel planner with smart filters, Khmer-friendly UI, and full-screen location maps.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon-travel.png",
+    apple: "/icon-travel.png",
+  },
 };
 
 export default function RootLayout({
