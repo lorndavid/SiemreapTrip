@@ -34,3 +34,9 @@ export type GuideLocation = {
   photoTip?: string;
   photoTipKh?: string;
 };
+
+export type LocationImageMeta = {
+  src: string;
+  title: string;
+  place: string;
+};

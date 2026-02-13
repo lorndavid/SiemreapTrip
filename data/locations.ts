@@ -1,4 +1,4 @@
-import { GuideLocation, LocationType } from "@/types/location";
+import { GuideLocation, LocationImageMeta, LocationType } from "@/types/location";
 
 export const locationTypes: Array<LocationType | "All"> = [
   "All",
@@ -312,3 +312,106 @@ export const siemReapLocations: GuideLocation[] = [
     highlightKh: "ពិន្ទុ Google Maps 4.8",
   },
 ];
+
+export const locationImageById: Record<number, LocationImageMeta> = {
+  1: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/f/f5/Buddhist_monks_in_front_of_the_Angkor_Wat.jpg",
+    title: "Angkor Wat",
+    place: "Krong Siem Reap, Cambodia",
+  },
+  2: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Bayon%2C_Angkor_Thom%2C_Camboya%2C_2013-08-17%2C_DD_37.JPG",
+    title: "Bayon Temple",
+    place: "Angkor Thom, Siem Reap, Cambodia",
+  },
+  3: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/8/8c/Ta_Prohm_%28III%29.jpg",
+    title: "Ta Prohm",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  4: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/1/1c/Front_porch_of_Wat_Damnak.jpg",
+    title: "Pub Street Area",
+    place: "Central Siem Reap, Cambodia",
+  },
+  5: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/3/3c/Banteay_Srei_full2.jpg",
+    title: "Banteay Srei",
+    place: "Banteay Srei District, Siem Reap, Cambodia",
+  },
+  6: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/0/01/Phnom_Bakheng_temple_at_Angkor%2C_Cambodia.jpg",
+    title: "Phnom Bakheng",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  7: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/f/f1/Photo_de_l%27int%C3%A9rieur_du_march%C3%A9_de_Siem_Reap_-_Cambodge.jpg",
+    title: "Old Market",
+    place: "Psar Chas, Siem Reap, Cambodia",
+  },
+  8: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/ef/Angkor_National_Museum_%28II%29.jpg",
+    title: "Angkor National Museum",
+    place: "Krong Siem Reap, Cambodia",
+  },
+  9: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Preah_Khan%2C_Angkor%2C_Camboya%2C_2013-08-17%2C_DD_26.JPG",
+    title: "Wat Thmey",
+    place: "Siem Reap, Cambodia",
+  },
+  10: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Angkor_Ruins_from_Space.jpg",
+    title: "West Baray",
+    place: "Siem Reap Province, Cambodia",
+  },
+  11: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/e7/Preah_Khan%2C_Angkor%2C_Camboya%2C_2013-08-17%2C_DD_26.JPG",
+    title: "Preah Khan Temple",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  12: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/8/85/Pre_Rup%2C_Angkor%2C_Camboya%2C_2013-08-16%2C_DD_13.JPG",
+    title: "Pre Rup Temple",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  13: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/3/3a/2016_Angkor%2C_Angkor_Thom%2C_Baphuon_%2817%29.jpg",
+    title: "Baphuon Temple",
+    place: "Angkor Thom, Siem Reap, Cambodia",
+  },
+  14: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/e0/Ta_Keo_Temple_%28I%29.jpg",
+    title: "Ta Keo Temple",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  15: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/2/24/Banteay_Kdei%2C_Angkor%2C_Camboya%2C_2013-08-16%2C_DD_10.JPG",
+    title: "Banteay Kdei Temple",
+    place: "Angkor Archaeological Park, Siem Reap, Cambodia",
+  },
+  16: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/0/0a/BRINKHOFF_010497.jpg",
+    title: "Phare, The Cambodian Circus",
+    place: "Siem Reap, Cambodia",
+  },
+  17: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/3/34/Nelumbo_nucifera1romainguy.jpg",
+    title: "Lotus Silk Farm",
+    place: "Siem Reap Province, Cambodia",
+  },
+  18: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Minigolf.jpg",
+    title: "Angkor Wat Putt",
+    place: "Siem Reap, Cambodia",
+  },
+  19: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/2/22/Angkor_Thom_%28II%29.jpg",
+    title: "Gate of the Dead",
+    place: "Angkor Thom, Siem Reap, Cambodia",
+  },
+  20: {
+    src: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Bayonmarket01.JPG",
+    title: "Sombai Cambodian Liqueur",
+    place: "Siem Reap, Cambodia",
+  },
+};

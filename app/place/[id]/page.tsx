@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { siemReapLocations } from "@/data/locations";
+import { locationImageById, siemReapLocations } from "@/data/locations";
 import { GuideLocation } from "@/types/location";
 import {
   CambodiaTimeSnapshot,
@@ -131,19 +131,6 @@ const labels = {
 
 function toGoogleMapsLink(location: GuideLocation) {
   return `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
-}
-
-function localizeBudget(budget: string, language: LanguageMode) {
-  if (language === "en") {
-    return budget;
-  }
-
-  const khBudgetMap: Record<string, string> = {
-    "Pass required": "Pass required",
-    Donation: "Donation",
-  };
-
-  return khBudgetMap[budget] ?? budget;
 }
 
 export default function PlaceDetailPage() {
@@ -354,7 +341,7 @@ export default function PlaceDetailPage() {
             <button
               type="button"
               onClick={() => setLanguage((previous) => (previous === "en" ? "kh" : "en"))}
-              className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-transparent px-2 py-1 text-[10px] font-semibold text-slate-700"
             >
               <Languages size={12} /> {language === "en" ? "KH" : "EN"}
             </button>
@@ -382,6 +369,19 @@ export default function PlaceDetailPage() {
 
       <div className="absolute inset-x-0 bottom-3 z-[500] px-3">
         <article className="rounded-2xl border border-white/65 bg-white/90 p-3 shadow-[0_24px_50px_-30px_rgba(15,23,42,0.85)] backdrop-blur-xl">
+          <div className="mb-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+            <Image
+              src={locationImageById[location.id]?.src ?? "https://i.postimg.cc/FzSLnvWN/page-loading-bg.png"}
+              alt={`${location.name} - Siem Reap`}
+              width={720}
+              height={300}
+              loading="lazy"
+              unoptimized
+              referrerPolicy="no-referrer"
+              className="h-28 w-full object-cover"
+            />
+          </div>
+
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -390,6 +390,9 @@ export default function PlaceDetailPage() {
               <h1 className="truncate text-base font-bold text-slate-900">
                 {language === "kh" ? location.nameKh : location.name}
               </h1>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {locationImageById[location.id]?.place ?? "Siem Reap, Cambodia"}
+              </p>
             </div>
             <button
               type="button"
@@ -412,9 +415,6 @@ export default function PlaceDetailPage() {
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
               <Sunrise size={11} /> {text.bestTime}: {location.bestTime}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-              {text.budget}: {localizeBudget(location.budget, language)}
             </span>
             {distanceFromUser !== null && (
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">

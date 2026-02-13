@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import Image from "next/image";
 import L from "leaflet";
 import SunCalc from "suncalc";
 import {
@@ -15,6 +16,7 @@ import {
 import { ExternalLink } from "lucide-react";
 import { GuideLocation, LocationType } from "@/types/location";
 import { getPhotoTip } from "@/lib/placeMeta";
+import { locationImageById } from "@/data/locations";
 
 type LanguageMode = "en" | "kh";
 
@@ -190,12 +192,27 @@ export default function Map({ locations, activeLoc, language, onMapReady }: MapP
         >
           <Popup className="custom-popup">
             <div className="min-w-[176px] p-1.5">
+              <div className="mb-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                <Image
+                  src={locationImageById[loc.id]?.src ?? "https://i.postimg.cc/FzSLnvWN/page-loading-bg.png"}
+                  alt={`${loc.name} - Siem Reap`}
+                  width={320}
+                  height={180}
+                  loading="lazy"
+                  unoptimized
+                  referrerPolicy="no-referrer"
+                  className="h-24 w-full object-cover"
+                />
+              </div>
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                 {typeLabels[loc.type][language]}
               </p>
               <h3 className="font-semibold text-slate-900">
                 {language === "kh" ? loc.nameKh : loc.name}
               </h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {locationImageById[loc.id]?.place ?? "Siem Reap, Cambodia"}
+              </p>
               <p className="mt-1 text-xs text-slate-600">
                 {language === "kh" ? loc.descKh : loc.desc}
               </p>

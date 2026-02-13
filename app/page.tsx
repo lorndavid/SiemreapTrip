@@ -30,7 +30,7 @@ import {
   Volume2,
   X,
 } from "lucide-react";
-import { locationTypes, siemReapLocations } from "@/data/locations";
+import { locationImageById, locationTypes, siemReapLocations } from "@/data/locations";
 import { GuideLocation, LocationType } from "@/types/location";
 import { SongTrack } from "@/types/song";
 import EmergencyToolkit from "@/components/EmergencyToolkit";
@@ -114,6 +114,8 @@ function formatAudioClock(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
+
+const defaultLocationImage = "https://i.postimg.cc/FzSLnvWN/page-loading-bg.png";
 
 const uiText = {
   en: {
@@ -337,15 +339,6 @@ const typeLabels: Record<LocationType, { en: string; kh: string }> = {
   Culture: { en: "Culture", kh: "វប្បធម៌" },
 };
 
-const typeCardColor: Record<LocationType, string> = {
-  Temple: "from-rose-500 to-orange-400",
-  Nature: "from-emerald-500 to-lime-400",
-  Dining: "from-amber-500 to-orange-500",
-  Shopping: "from-violet-500 to-fuchsia-500",
-  Museum: "from-cyan-500 to-blue-500",
-  Culture: "from-pink-500 to-rose-500",
-};
-
 const navItems = [
   { key: "home", icon: House },
   { key: "place", icon: MapPinned },
@@ -372,17 +365,39 @@ function toGoogleMapsLink(location: GuideLocation) {
   return `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
 }
 
-function localizeBudget(budget: string, language: LanguageMode) {
-  if (language === "en") {
-    return budget;
-  }
+function LocationThumb({
+  location,
+  typeLabel,
+  className,
+}: {
+  location: GuideLocation;
+  typeLabel: string;
+  className?: string;
+}) {
+  const imageMeta = locationImageById[location.id];
+  const fallbackImage = "https://i.postimg.cc/FzSLnvWN/page-loading-bg.png";
 
-  const khBudgetMap: Record<string, string> = {
-    "Pass required": "ត្រូវការសំបុត្រ",
-    Donation: "បរិច្ចាគ",
-  };
-
-  return khBudgetMap[budget] ?? budget;
+  return (
+    <div
+      className={`group relative shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 ${className ?? "h-14 w-14"}`}
+    >
+      <Image
+        src={imageMeta?.src ?? fallbackImage}
+        alt={`${imageMeta?.title ?? location.name} - ${imageMeta?.place ?? "Siem Reap, Cambodia"}`}
+        fill
+        sizes="64px"
+        loading="lazy"
+        unoptimized
+        referrerPolicy="no-referrer"
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 pb-1 pt-4">
+        <span className="line-clamp-1 text-[9px] font-semibold tracking-[0.08em] text-white">
+          {typeLabel}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -412,6 +427,7 @@ export default function Home() {
   const [songCount, setSongCount] = useState<number | null>(null);
   const [songLibrary, setSongLibrary] = useState<SongTrack[]>([]);
   const [introTrackIndex, setIntroTrackIndex] = useState(0);
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [introCurrentTime, setIntroCurrentTime] = useState(0);
   const [introDuration, setIntroDuration] = useState<number>(introSequenceTracks[0].duration);
   const [isIntroPlaying, setIsIntroPlaying] = useState(false);
@@ -489,6 +505,14 @@ export default function Home() {
     );
   }, []);
 
+  const heroSlides = siemReapLocations.map((location) => ({
+    location,
+    imageSrc: locationImageById[location.id]?.src ?? defaultLocationImage,
+    place: locationImageById[location.id]?.place ?? "Siem Reap, Cambodia",
+  }));
+
+  const activeHeroSlide = heroSlides[heroSlideIndex] ?? heroSlides[0] ?? null;
+
   useEffect(() => {
     if (motionMode === "minimal") {
       return;
@@ -511,6 +535,18 @@ export default function Home() {
   }, [motionMode]);
 
   useEffect(() => {
+    if (activeTab !== "home" || heroSlides.length <= 1) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setHeroSlideIndex((previous) => (previous + 1) % heroSlides.length);
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [activeTab, heroSlides.length]);
+
+  useEffect(() => {
     if (motionMode === "minimal") {
       const timer = window.setTimeout(() => setIsBooting(false), 650);
       return () => window.clearTimeout(timer);
@@ -523,12 +559,6 @@ export default function Home() {
           "[data-splash='panel']",
           { opacity: 0, y: 24, scale: 0.96 },
           { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "power3.out" },
-        )
-        .fromTo(
-          "[data-splash='logo']",
-          { opacity: 0, scale: 0.78, y: 16 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.7, ease: "power3.out" },
-          "-=0.2",
         )
         .fromTo(
           "[data-splash='loader']",
@@ -862,6 +892,8 @@ export default function Home() {
     language === "kh" ? location.descKh : location.desc;
 
   const localizeType = (type: LocationType) => typeLabels[type][language];
+  const getPlaceLabel = (location: GuideLocation) =>
+    locationImageById[location.id]?.place ?? "Siem Reap, Cambodia";
   const introTrack = introSequenceTracks[introTrackIndex] ?? introSequenceTracks[0];
   const introTrackLabel = language === "kh" ? introTrack.labelKh : introTrack.labelEn;
   const introProgress =
@@ -964,15 +996,15 @@ export default function Home() {
               priority
             />
 
-            <div className="rounded-2xl border border-white/35 bg-white/18 p-1.5 backdrop-blur-md">
-              <div className="grid min-w-[96px] grid-cols-2 gap-1">
+            <div className="rounded-2xl border border-white/45 bg-transparent p-1">
+              <div className="grid min-w-[82px] grid-cols-2 gap-1">
                 <button
                   type="button"
                   onClick={() => setLanguage("en")}
-                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
+                  className={`rounded-xl px-1.5 py-1 text-[10px] font-semibold leading-none transition-colors ${
                     language === "en"
-                      ? "bg-white text-[var(--ui-header-start)] shadow-sm"
-                      : "text-white/90 hover:bg-white/15"
+                      ? "border border-white text-white"
+                      : "border border-transparent text-white/80 hover:border-white/55"
                   }`}
                 >
                   EN
@@ -980,10 +1012,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setLanguage("kh")}
-                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
+                  className={`rounded-xl px-1.5 py-1 text-[10px] font-semibold leading-none transition-colors ${
                     language === "kh"
-                      ? "bg-white text-[var(--ui-header-start)] shadow-sm"
-                      : "text-white/90 hover:bg-white/15"
+                      ? "border border-white text-white"
+                      : "border border-transparent text-white/80 hover:border-white/55"
                   }`}
                 >
                   KH
@@ -1001,19 +1033,55 @@ export default function Home() {
             <div className="space-y-3">
               <div
                 data-tab-item
-                className="relative overflow-hidden rounded-[1.6rem] border border-red-300/70 bg-gradient-to-br from-red-600 via-orange-500 to-amber-400 p-4 text-white shadow-[0_24px_44px_-28px_rgba(190,24,93,0.85)]"
+                className="relative overflow-hidden rounded-[1.6rem] border border-white/35 p-4 text-white shadow-[0_24px_44px_-28px_rgba(15,23,42,0.85)]"
               >
-                <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/20 blur-sm" />
-                <div className="pointer-events-none absolute -bottom-12 left-8 h-24 w-24 rounded-full bg-amber-200/35" />
+                <div className="absolute inset-0">
+                  {activeHeroSlide && (
+                    <Image
+                      key={activeHeroSlide.location.id}
+                      src={activeHeroSlide.imageSrc}
+                      alt={`${activeHeroSlide.location.name} - ${activeHeroSlide.place}`}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 460px"
+                      loading="eager"
+                      unoptimized
+                      referrerPolicy="no-referrer"
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/52 to-black/68" />
 
                 <div className="relative z-10">
-                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
+                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-transparent px-2.5 py-1 text-[10px] font-semibold">
                     <Radio size={12} /> {text.mapLive}
                   </div>
-                  <h2 className="app-heading text-[1.12rem] leading-tight">
-                    {language === "kh" ? "ផែនការដំណើរឆ្លាតវៃ" : "Plan Smarter. Explore Better."}
+                  <h2 className="app-heading text-[1.08rem] leading-tight">
+                    {language === "kh"
+                      ? activeHeroSlide?.location.nameKh ?? "ផែនការដំណើរឆ្លាតវៃ"
+                      : activeHeroSlide?.location.name ?? "Plan Smarter. Explore Better."}
                   </h2>
-                  <p className="mt-1 text-xs text-orange-50/95">{text.welcome}</p>
+                  <p className="mt-1 text-xs text-white/90">
+                    {language === "kh"
+                      ? activeHeroSlide?.location.descKh ?? text.welcome
+                      : activeHeroSlide?.location.desc ?? text.welcome}
+                  </p>
+                  <p className="mt-1 text-[11px] text-white/75">
+                    {activeHeroSlide?.place ?? "Siem Reap, Cambodia"}
+                  </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    {heroSlides.slice(0, 6).map((slide, index) => {
+                      const isActiveDot = heroSlideIndex % 6 === index;
+                      return (
+                        <span
+                          key={slide.location.id}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            isActiveDot ? "w-5 bg-white" : "w-2.5 bg-white/55"
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
@@ -1105,15 +1173,16 @@ export default function Home() {
                     }}
                     className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-[0_16px_32px_-26px_rgba(15,23,42,0.65)] transition-transform hover:-translate-y-0.5"
                   >
-                    <div
-                      className={`inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xs font-bold text-white ${typeCardColor[location.type]}`}
-                    >
-                      {localizeType(location.type)}
-                    </div>
+                    <LocationThumb
+                      location={location}
+                      typeLabel={localizeType(location.type)}
+                      className="h-14 w-14"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-900">
                         {localizeName(location)}
                       </p>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500">{getPlaceLabel(location)}</p>
                       <p className="line-clamp-1 text-xs text-slate-600">
                         {localizeDescription(location)}
                       </p>
@@ -1233,13 +1302,14 @@ export default function Home() {
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div
-                            className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-[11px] font-bold text-white ${typeCardColor[location.type]}`}
-                          >
-                            {localizeType(location.type)}
-                          </div>
+                          <LocationThumb
+                            location={location}
+                            typeLabel={localizeType(location.type)}
+                            className="h-12 w-12"
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-900">{localizeName(location)}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-500">{getPlaceLabel(location)}</p>
                             <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{localizeDescription(location)}</p>
                             <div className="mt-2 flex flex-wrap gap-1.5">
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
@@ -1249,9 +1319,6 @@ export default function Home() {
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
                                 <Sunrise size={11} className="mr-1 inline-block" />
                                 {location.bestTime}
-                              </span>
-                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                                {text.budget}: {localizeBudget(location.budget, language)}
                               </span>
                               {distanceKm !== null && (
                                 <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
@@ -1382,10 +1449,20 @@ export default function Home() {
                     data-tab-item
                     className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.65)]"
                   >
-                    <p className="text-sm font-semibold text-slate-900">{localizeName(location)}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-slate-600">
-                      {localizeDescription(location)}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      <LocationThumb
+                        location={location}
+                        typeLabel={localizeType(location.type)}
+                        className="h-14 w-14"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">{localizeName(location)}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">{getPlaceLabel(location)}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-600">
+                          {localizeDescription(location)}
+                        </p>
+                      </div>
+                    </div>
                     <div className="mt-3 flex gap-2">
                       <Link
                         href={`/place/${location.id}`}
@@ -1521,14 +1598,14 @@ export default function Home() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   {text.language}
                 </p>
-                <div className="mt-2 inline-flex rounded-2xl border border-slate-200 bg-slate-100/90 p-1">
+                <div className="mt-2 inline-flex rounded-2xl border border-slate-300 bg-transparent p-1">
                   <button
                     type="button"
                     onClick={() => setLanguage("en")}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold leading-none ${
+                    className={`rounded-xl px-2.5 py-1 text-[11px] font-semibold leading-none ${
                       language === "en"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-white"
+                        ? "border border-slate-900 text-slate-900"
+                        : "border border-transparent text-slate-600 hover:border-slate-400"
                     }`}
                   >
                     EN
@@ -1536,10 +1613,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setLanguage("kh")}
-                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold leading-none ${
+                    className={`rounded-xl px-2.5 py-1 text-[11px] font-semibold leading-none ${
                       language === "kh"
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-white"
+                        ? "border border-slate-900 text-slate-900"
+                        : "border border-transparent text-slate-600 hover:border-slate-400"
                     }`}
                   >
                     KH
@@ -1772,28 +1849,19 @@ export default function Home() {
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-900/55 to-black/78" />
-            <div className="pointer-events-none absolute -left-20 top-16 h-56 w-56 rounded-full bg-white/15 blur-3xl" />
-            <div className="pointer-events-none absolute -right-20 bottom-10 h-56 w-56 rounded-full bg-cyan-300/15 blur-3xl" />
             <div
               data-splash="panel"
-              className="relative flex w-full max-w-[330px] flex-col items-center justify-center rounded-[1.9rem] border border-white/25 bg-white/10 px-5 py-6 shadow-[0_30px_70px_-36px_rgba(0,0,0,0.82)] backdrop-blur-xl"
+              className="relative flex w-full max-w-[220px] flex-col items-center justify-center rounded-[1.4rem] border border-white/35 bg-transparent px-4 py-6"
             >
-              <Image
-                data-splash="logo"
-                src="/logo-travel.png"
-                alt="Angkor Go logo"
-                width={246}
-                height={82}
-                priority
-                className="h-auto w-[82%] max-w-[246px] object-contain drop-shadow-[0_20px_38px_rgba(0,0,0,0.42)]"
-              />
-              <div data-splash="loader" className="mt-5 flex items-center justify-center gap-1.5">
-                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white [animation-delay:-0.25s]" />
-                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white [animation-delay:-0.12s]" />
-                <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-white" />
-              </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/20">
-                <span className="block h-full w-1/2 animate-pulse rounded-full bg-white/85" />
+              <div data-splash="loader" className="flex flex-col items-center justify-center gap-3">
+                <span className="sr-loader-ring">
+                  <span className="sr-loader-orbit" />
+                </span>
+                <span className="sr-loader-dots">
+                  <span className="sr-loader-dot" />
+                  <span className="sr-loader-dot" />
+                  <span className="sr-loader-dot" />
+                </span>
               </div>
             </div>
           </div>

@@ -271,39 +271,44 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
   return (
     <main
       ref={rootRef}
-      className={`relative min-h-screen bg-[var(--music-bg)] px-4 py-5 text-white ${paletteClass}`}
+      className={`relative min-h-screen overflow-hidden px-4 py-5 text-white ${paletteClass}`}
     >
-      <div className="pointer-events-none absolute -left-14 top-20 h-44 w-44 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-14 top-8 h-44 w-44 rounded-full bg-indigo-300/20 blur-3xl" />
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('https://i.postimg.cc/FzSLnvWN/page-loading-bg.png')",
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/52 via-black/40 to-black/58" />
 
-      <section className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-[480px] flex-col overflow-hidden rounded-[2rem] border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
+      <section className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-[480px] flex-col overflow-hidden rounded-[2rem] border border-white/30 bg-transparent p-4">
         <div className="flex items-center justify-between">
           <Link
             href="/"
-            className="inline-flex items-center gap-1 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/25"
+            className="inline-flex items-center gap-1 rounded-xl border border-white/45 bg-transparent px-3 py-2 text-xs font-semibold text-white hover:border-white"
           >
             <ArrowLeft size={13} /> Back
           </Link>
-          <p className="inline-flex items-center gap-1 rounded-full bg-cyan-300/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100">
+          <p className="inline-flex items-center gap-1 rounded-full border border-white/45 bg-transparent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90">
             <Music2 size={11} /> Music Lounge
           </p>
         </div>
 
-        <div data-song-animate="hero" className="mt-4 rounded-2xl border border-white/15 bg-gradient-to-br from-cyan-500/20 via-indigo-500/20 to-slate-900/35 p-4">
+        <div data-song-animate="hero" className="mt-4 rounded-2xl border border-white/35 bg-transparent p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/90">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/90">
               Now Playing
             </p>
             <Disc3
               size={16}
-              className={`text-cyan-100 ${isPlaying ? "animate-spin [animation-duration:2.5s]" : ""}`}
+              className={`text-white/90 ${isPlaying ? "animate-spin [animation-duration:2.5s]" : ""}`}
             />
           </div>
 
           <h1 className="line-clamp-2 text-lg font-bold text-white">
             {activeSong ? activeSong.title : "No songs found"}
           </h1>
-          <p className="mt-1 text-xs text-cyan-100/80">
+          <p className="mt-1 text-xs text-white/80">
             {songs.length > 0 ? `${songs.length} tracks available` : "Upload files to /public/songs"}
           </p>
 
@@ -316,9 +321,9 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
               value={currentTime}
               onChange={(event) => handleSeek(Number(event.target.value))}
               disabled={!duration}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-cyan-300 disabled:cursor-not-allowed"
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/25 accent-amber-300 disabled:cursor-not-allowed"
             />
-            <div className="mt-1 flex items-center justify-between text-[11px] text-cyan-100/80">
+            <div className="mt-1 flex items-center justify-between text-[11px] text-white/80">
               <span>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
@@ -329,7 +334,7 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
               type="button"
               onClick={() => handleStepTrack("prev")}
               disabled={songs.length === 0}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 disabled:opacity-50"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-transparent text-white hover:border-white disabled:opacity-50"
             >
               <SkipBack size={17} />
             </button>
@@ -337,7 +342,7 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
               type="button"
               onClick={handleTogglePlay}
               disabled={songs.length === 0}
-              className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg hover:bg-cyan-100 disabled:opacity-50"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg hover:bg-amber-100 disabled:opacity-50"
             >
               {isPlaying ? <Pause size={18} /> : <Play size={18} />}
             </button>
@@ -345,7 +350,7 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
               type="button"
               onClick={() => handleStepTrack("next")}
               disabled={songs.length === 0}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 disabled:opacity-50"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-transparent text-white hover:border-white disabled:opacity-50"
             >
               <SkipForward size={17} />
             </button>
@@ -356,20 +361,20 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
           <div className="relative">
             <Search
               size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-100/70"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/70"
             />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search songs..."
-              className="h-11 w-full rounded-xl border border-white/20 bg-white/10 pl-9 pr-3 text-sm text-white placeholder:text-cyan-100/70 outline-none focus:border-cyan-300/70 focus:bg-white/15"
+              className="h-11 w-full rounded-xl border border-white/35 bg-transparent pl-9 pr-3 text-sm text-white placeholder:text-white/70 outline-none focus:border-amber-300/70"
             />
           </div>
         </div>
 
         <div className="mt-3 flex-1 overflow-y-auto pr-1">
           {filteredSongs.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/30 bg-white/8 p-4 text-center text-sm text-cyan-100/90">
+            <div className="rounded-2xl border border-dashed border-white/40 bg-transparent p-4 text-center text-sm text-white/90">
               No songs yet. Upload `.mp3` files into `public/songs`.
             </div>
           ) : (
@@ -385,12 +390,12 @@ export default function SongLibrary({ songs }: SongLibraryProps) {
                     onClick={() => handleSelectSong(song.id)}
                     className={`w-full rounded-xl border px-3 py-2 text-left transition ${
                       isActive
-                        ? "border-cyan-300 bg-cyan-300/20 shadow-[0_18px_35px_-30px_rgba(34,211,238,0.95)]"
-                        : "border-white/20 bg-white/7 hover:bg-white/12"
+                        ? "border-amber-300 bg-transparent"
+                        : "border-white/35 bg-transparent hover:border-white/65"
                     }`}
                   >
                     <p className="truncate text-sm font-semibold text-white">{song.title}</p>
-                    <p className="mt-0.5 truncate text-[11px] text-cyan-100/75">{song.filename}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-white/75">{song.filename}</p>
                   </button>
                 );
               })}

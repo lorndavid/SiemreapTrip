@@ -177,7 +177,7 @@ export default function SettingsPage() {
           <div className="relative z-10 flex items-center justify-between gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 rounded-xl border border-white/35 bg-white/18 px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur-md"
+              className="inline-flex items-center gap-1 rounded-xl border border-white/45 bg-transparent px-2.5 py-1.5 text-[11px] font-semibold"
             >
               <ArrowLeft size={12} /> {ui.back}
             </Link>
@@ -191,13 +191,15 @@ export default function SettingsPage() {
               className="h-12 w-auto object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.3)]"
             />
 
-            <div className="rounded-2xl border border-white/35 bg-white/18 p-1.5 backdrop-blur-md">
-              <div className="grid min-w-[96px] grid-cols-2 gap-1">
+            <div className="rounded-2xl border border-white/45 bg-transparent p-1">
+              <div className="grid min-w-[82px] grid-cols-2 gap-1">
                 <button
                   type="button"
                   onClick={() => setLanguage("en")}
-                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
-                    language === "en" ? "bg-white text-slate-900 shadow-sm" : "text-white/90 hover:bg-white/15"
+                  className={`rounded-xl px-1.5 py-1 text-[10px] font-semibold leading-none transition-colors ${
+                    language === "en"
+                      ? "border border-white text-white"
+                      : "border border-transparent text-white/80 hover:border-white/55"
                   }`}
                 >
                   EN
@@ -205,8 +207,10 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setLanguage("kh")}
-                  className={`rounded-xl px-2 py-1.5 text-[11px] font-semibold leading-none transition-colors ${
-                    language === "kh" ? "bg-white text-slate-900 shadow-sm" : "text-white/90 hover:bg-white/15"
+                  className={`rounded-xl px-1.5 py-1 text-[10px] font-semibold leading-none transition-colors ${
+                    language === "kh"
+                      ? "border border-white text-white"
+                      : "border border-transparent text-white/80 hover:border-white/55"
                   }`}
                 >
                   KH
@@ -216,7 +220,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="relative z-10 mt-3">
-            <p className="inline-flex items-center gap-1 rounded-full bg-white/18 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90 backdrop-blur-md">
+            <p className="inline-flex items-center gap-1 rounded-full border border-white/40 bg-transparent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/90">
               <Settings2 size={11} /> {ui.title}
             </p>
             <p className="mt-1 text-xs text-white/85">{ui.subtitle}</p>
